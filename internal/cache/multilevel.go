@@ -9,6 +9,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -48,6 +49,7 @@ func (m *MultiLevel) Get(key string) (*models.Response, bool) {
 	// L1: local cache
 	if val, ok := m.local.Get(key); ok {
 		if resp, ok := val.(*models.Response); ok {
+			metrics.CacheHits.WithLabelValues("local").Inc()
 			return resp, true
 		}
 	}
@@ -59,11 +61,13 @@ func (m *MultiLevel) Get(key string) (*models.Response, bool) {
 			var resp models.Response
 			if err := json.Unmarshal([]byte(val), &resp); err == nil {
 				m.local.SetWithTTL(key, &resp, 1, m.defaultLocalTTL)
+				metrics.CacheHits.WithLabelValues("remote").Inc()
 				return &resp, true
 			}
 		}
 	}
 
+	metrics.CacheMisses.WithLabelValues("all").Inc()
 	return nil, false
 }
 

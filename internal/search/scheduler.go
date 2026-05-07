@@ -12,6 +12,7 @@ import (
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/logger"
+	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -82,6 +83,8 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	response.EnginesFailed = enginesFailed
 	response.ResponseTimeMs = time.Since(start).Milliseconds()
 
+	metrics.SearchResultsTotal.WithLabelValues(string(req.Category)).Add(float64(len(response.Results)))
+
 	// 6. Write cache
 	if s.cache != nil {
 		s.cache.Set(req.CacheKey(), response, s.cacheTTL(req.Category))
@@ -120,18 +123,23 @@ func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engin
 		s.workerPool.Submit(func() {
 			defer wg.Done()
 
+			engineStart := time.Now()
 			timeout := s.getEngineTimeout(eng.Name())
 			engineCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
 
 			resp, err := eng.Search(engineCtx, req)
 			if err != nil {
+				metrics.EngineQueriesTotal.WithLabelValues(eng.Name(), "failed").Inc()
 				logger.Warn("engine failed", "engine", eng.Name(), "error", err)
 				failedMu.Lock()
 				enginesFailed = append(enginesFailed, eng.Name())
 				failedMu.Unlock()
 				return
 			}
+
+			metrics.EngineQueriesTotal.WithLabelValues(eng.Name(), "success").Inc()
+			metrics.EngineQueryDuration.WithLabelValues(eng.Name()).Observe(time.Since(engineStart).Seconds())
 
 			usedMu.Lock()
 			enginesUsed = append(enginesUsed, eng.Name())

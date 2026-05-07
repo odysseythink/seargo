@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/pkg/models"
@@ -20,6 +21,7 @@ func (s *Server) setupRoutes() {
 	}
 
 	s.router.GET("/health", s.handleHealth)
+	s.router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 }
 
 func (s *Server) handleSearch(c *gin.Context) {
