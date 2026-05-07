@@ -14,6 +14,14 @@ engines:
     enabled: true
     weight: 1.0
     timeout: 10
+  - name: bing
+    enabled: true
+    weight: 0.8
+    timeout: 10
+  - name: duckduckgo
+    enabled: true
+    weight: 0.9
+    timeout: 10
 
 outgoing:
   request_timeout: 15
