@@ -41,7 +41,7 @@ func NewScheduler(cfg *config.Config, c cache.Cache) (*Scheduler, error) {
 		workerPool:    pool,
 		cache:         c,
 		globalTimeout: time.Duration(cfg.Outgoing.Timeout) * time.Second,
-		defaultEngineTimeout: 10 * time.Second,
+		defaultEngineTimeout: 8 * time.Second,
 	}, nil
 }
 

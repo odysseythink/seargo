@@ -39,7 +39,9 @@ func (g *Google) Capabilities() engine.Capabilities {
 func (g *Google) Init(cfg map[string]any) error {
 	g.client = resty.New().
 		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
-		SetTimeout(10 * time.Second)
+		SetHeader("Referer", "https://www.google.com/").
+		SetTimeout(8 * time.Second).
+		SetRetryCount(1)
 	return nil
 }
 

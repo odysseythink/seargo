@@ -38,8 +38,11 @@ func (b *Bing) Capabilities() engine.Capabilities {
 
 func (b *Bing) Init(cfg map[string]any) error {
 	b.client = resty.New().
-		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").
-		SetTimeout(10 * time.Second)
+		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
+		SetHeader("Referer", "https://www.bing.com/").
+		SetHeader("Cookie", "MUID=; MUIDB=; SRCHD=AF=NOFORM; SRCHUID=V=2&GUID=; SRCHUSR=DOB=20240101").
+		SetTimeout(8 * time.Second).
+		SetRetryCount(1)
 	return nil
 }
 

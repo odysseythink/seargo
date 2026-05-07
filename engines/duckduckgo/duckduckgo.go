@@ -3,7 +3,6 @@ package duckduckgo
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -41,23 +40,31 @@ func (d *DuckDuckGo) Capabilities() engine.Capabilities {
 
 func (d *DuckDuckGo) Init(cfg map[string]any) error {
 	d.client = resty.New().
-		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").
-		SetTimeout(10 * time.Second)
+		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
+		SetHeader("Referer", "https://html.duckduckgo.com/").
+		SetTimeout(8 * time.Second).
+		SetRetryCount(1)
 	return nil
 }
 
 func (d *DuckDuckGo) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
-	searchURL := fmt.Sprintf("https://html.duckduckgo.com/html/?q=%s", url.QueryEscape(req.Query))
+	formData := map[string]string{
+		"q":  req.Query,
+		"kl": "en-us",
+	}
 
 	if req.SafeSearch {
-		searchURL += "&kp=1"
+		formData["kp"] = "1"
 	}
 
 	if req.Page > 1 {
-		searchURL += "&s=" + strconv.Itoa((req.Page-1)*30)
+		formData["s"] = strconv.Itoa((req.Page - 1) * 30)
 	}
 
-	resp, err := d.client.R().SetContext(ctx).Get(searchURL)
+	resp, err := d.client.R().
+		SetContext(ctx).
+		SetFormData(formData).
+		Post("https://html.duckduckgo.com/html/")
 	if err != nil {
 		return nil, fmt.Errorf("duckduckgo request failed: %w", err)
 	}
