@@ -9,9 +9,17 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/logger"
+	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/internal/server"
+
+	// Import engines to trigger init() registration
+	_ "github.com/seargo/seargo/engines/bing"
+	_ "github.com/seargo/seargo/engines/duckduckgo"
+	_ "github.com/seargo/seargo/engines/google"
 )
 
 func main() {
@@ -24,7 +32,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	flag.Set("logtostderr", "true")
 	if err := logger.Init("info", "stdout"); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to init logger: %v\n", err)
 		os.Exit(1)
@@ -32,8 +39,42 @@ func main() {
 
 	logger.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
 
-	srv := server.New(cfg)
+	// Init cache
+	c, err := cache.NewMultiLevel(cfg.Cache.RedisAddr)
+	if err != nil {
+		logger.Error("Failed to init cache", "error", err)
+		os.Exit(1)
+	}
 
+	// Init scheduler
+	sched, err := search.NewScheduler(cfg, c)
+	if err != nil {
+		logger.Error("Failed to init scheduler", "error", err)
+		os.Exit(1)
+	}
+
+	// Register enabled engines
+	for _, ec := range cfg.Engines {
+		if !ec.Enabled {
+			continue
+		}
+		eng, ok := engine.Get(ec.Name)
+		if !ok {
+			logger.Warn("Engine not found", "engine", ec.Name)
+			continue
+		}
+		if err := eng.Init(ec.Extra); err != nil {
+			logger.Error("Failed to init engine", "engine", ec.Name, "error", err)
+			continue
+		}
+		sched.RegisterEngine(ec.Name, eng)
+		logger.Info("Engine registered", "engine", ec.Name)
+	}
+
+	// Create server
+	srv := server.New(cfg, sched)
+
+	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 

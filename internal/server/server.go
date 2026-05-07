@@ -9,15 +9,17 @@ import (
 
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/middleware"
+	"github.com/seargo/seargo/internal/search"
 )
 
 type Server struct {
-	router *gin.Engine
-	config *config.Config
-	http   *http.Server
+	router    *gin.Engine
+	config    *config.Config
+	scheduler *search.Scheduler
+	http      *http.Server
 }
 
-func New(cfg *config.Config) *Server {
+func New(cfg *config.Config, scheduler *search.Scheduler) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
@@ -27,8 +29,9 @@ func New(cfg *config.Config) *Server {
 	r.Use(gin.Recovery())
 
 	s := &Server{
-		router: r,
-		config: cfg,
+		router:    r,
+		config:    cfg,
+		scheduler: scheduler,
 	}
 
 	s.setupRoutes()

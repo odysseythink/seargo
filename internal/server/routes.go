@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -27,14 +28,39 @@ func (s *Server) handleSearch(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusOK, models.Response{
-		Query:   req.Query,
-		Results: []models.Result{},
-	})
+
+	if req.Category == "" {
+		req.Category = models.Category(s.config.Search.DefaultCategory)
+	}
+	if req.PageSize <= 0 {
+		req.PageSize = s.config.Search.MaxResults
+	}
+
+	resp, err := s.scheduler.Search(c.Request.Context(), &req)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (s *Server) handleEngines(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"engines": []any{}})
+	allEngines := engine.All()
+	var infos []engine.Info
+	for name, e := range allEngines {
+		cats := make([]string, len(e.Categories()))
+		for i, c := range e.Categories() {
+			cats[i] = string(c)
+		}
+		infos = append(infos, engine.Info{
+			Name:         name,
+			Categories:   cats,
+			Capabilities: e.Capabilities(),
+			Enabled:      true, // TODO: read from config
+		})
+	}
+	c.JSON(http.StatusOK, gin.H{"engines": infos})
 }
 
 func (s *Server) handleCategories(c *gin.Context) {
@@ -45,11 +71,11 @@ func (s *Server) handleCategories(c *gin.Context) {
 
 func (s *Server) handleConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"default_language":   s.config.Search.DefaultLang,
-		"default_category":   s.config.Search.DefaultCategory,
-		"safe_search":        s.config.Search.SafeSearch,
-		"autocomplete":       s.config.Search.Autocomplete,
-		"max_results":        s.config.Search.MaxResults,
+		"default_language": s.config.Search.DefaultLang,
+		"default_category": s.config.Search.DefaultCategory,
+		"safe_search":      s.config.Search.SafeSearch,
+		"autocomplete":     s.config.Search.Autocomplete,
+		"max_results":      s.config.Search.MaxResults,
 	})
 }
 
