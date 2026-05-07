@@ -1,0 +1,50 @@
+package server
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/middleware"
+)
+
+type Server struct {
+	router *gin.Engine
+	config *config.Config
+	http   *http.Server
+}
+
+func New(cfg *config.Config) *Server {
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+
+	r.Use(middleware.Recovery())
+	r.Use(middleware.RequestLogger())
+	r.Use(middleware.ErrorHandler())
+	r.Use(gin.Recovery())
+
+	s := &Server{
+		router: r,
+		config: cfg,
+	}
+
+	s.setupRoutes()
+
+	s.http = &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", cfg.Server.BindAddress, cfg.Server.Port),
+		Handler: r,
+	}
+
+	return s
+}
+
+func (s *Server) Start() error {
+	return s.http.ListenAndServe()
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.http.Shutdown(ctx)
+}
