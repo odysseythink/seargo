@@ -10,6 +10,24 @@ import (
 	"github.com/odysseythink/mlog"
 )
 
+func formatPairs(msg string, args ...any) string {
+	if len(args) == 0 {
+		return msg
+	}
+	var b strings.Builder
+	b.WriteString(msg)
+	for i := 0; i < len(args)-1; i += 2 {
+		b.WriteString(" ")
+		key, ok := args[i].(string)
+		if ok {
+			b.WriteString(key)
+			b.WriteString("=")
+		}
+		b.WriteString(fmt.Sprintf("%v", args[i+1]))
+	}
+	return b.String()
+}
+
 var (
 	defaultLogger *Logger
 	initOnce      sync.Once
@@ -53,35 +71,19 @@ func Default() *Logger {
 }
 
 func (l *Logger) Debug(msg string, args ...any) {
-	if len(args) > 0 {
-		mlog.Debugf(msg, args...)
-	} else {
-		mlog.Debug(msg)
-	}
+	mlog.Debug(formatPairs(msg, args...))
 }
 
 func (l *Logger) Info(msg string, args ...any) {
-	if len(args) > 0 {
-		mlog.Infof(msg, args...)
-	} else {
-		mlog.Info(msg)
-	}
+	mlog.Info(formatPairs(msg, args...))
 }
 
 func (l *Logger) Warn(msg string, args ...any) {
-	if len(args) > 0 {
-		mlog.Warningf(msg, args...)
-	} else {
-		mlog.Warning(msg)
-	}
+	mlog.Warning(formatPairs(msg, args...))
 }
 
 func (l *Logger) Error(msg string, args ...any) {
-	if len(args) > 0 {
-		mlog.Errorf(msg, args...)
-	} else {
-		mlog.Error(msg)
-	}
+	mlog.Error(formatPairs(msg, args...))
 }
 
 func (l *Logger) With(key string, val any) *Logger {
