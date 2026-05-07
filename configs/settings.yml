@@ -22,6 +22,18 @@ engines:
     enabled: true
     weight: 0.9
     timeout: 10
+  - name: brave
+    enabled: true
+    weight: 0.8
+    timeout: 10
+  - name: wikipedia
+    enabled: true
+    weight: 0.6
+    timeout: 10
+  - name: yahoo
+    enabled: true
+    weight: 0.7
+    timeout: 10
 
 outgoing:
   request_timeout: 15

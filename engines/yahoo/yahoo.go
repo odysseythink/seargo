@@ -1,0 +1,84 @@
+package yahoo
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"strings"
+	"time"
+
+	"github.com/PuerkitoBio/goquery"
+	"github.com/go-resty/resty/v2"
+
+	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/pkg/models"
+)
+
+func init() {
+	engine.Register("yahoo", &Yahoo{})
+}
+
+type Yahoo struct {
+	client *resty.Client
+}
+
+func (y *Yahoo) Name() string { return "yahoo" }
+
+func (y *Yahoo) Categories() []models.Category {
+	return []models.Category{models.CategoryGeneral}
+}
+
+func (y *Yahoo) Capabilities() engine.Capabilities {
+	return engine.Capabilities{
+		SupportsSafeSearch: true,
+		SupportsLanguage:   true,
+		SupportsPagination: true,
+	}
+}
+
+func (y *Yahoo) Init(cfg map[string]any) error {
+	y.client = resty.New().
+		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
+		SetHeader("Referer", "https://search.yahoo.com/").
+		SetTimeout(8 * time.Second).
+		SetRetryCount(1)
+	return nil
+}
+
+func (y *Yahoo) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
+	searchURL := fmt.Sprintf("https://search.yahoo.com/search?p=%s", url.QueryEscape(req.Query))
+
+	resp, err := y.client.R().SetContext(ctx).Get(searchURL)
+	if err != nil {
+		return nil, fmt.Errorf("yahoo request failed: %w", err)
+	}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(resp.String()))
+	if err != nil {
+		return nil, fmt.Errorf("parse HTML: %w", err)
+	}
+
+	var results []models.Result
+	doc.Find(".algo").Each(func(i int, s *goquery.Selection) {
+		titleElem := s.Find("h3 a, h4 a, .title a")
+		title := strings.TrimSpace(titleElem.Text())
+		href, _ := titleElem.Attr("href")
+		snippet := strings.TrimSpace(s.Find(".fc-1st, .abstract").Text())
+
+		if title != "" && href != "" {
+			results = append(results, models.Result{
+				Title:    title,
+				URL:      href,
+				Content:  snippet,
+				Engine:   y.Name(),
+				Category: req.Category,
+			})
+		}
+	})
+
+	return &models.Response{
+		Query:    req.Query,
+		Category: req.Category,
+		Results:  results,
+	}, nil
+}

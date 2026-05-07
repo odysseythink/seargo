@@ -18,8 +18,11 @@ import (
 
 	// Import engines to trigger init() registration
 	_ "github.com/seargo/seargo/engines/bing"
+	_ "github.com/seargo/seargo/engines/brave"
 	_ "github.com/seargo/seargo/engines/duckduckgo"
 	_ "github.com/seargo/seargo/engines/google"
+	_ "github.com/seargo/seargo/engines/wikipedia"
+	_ "github.com/seargo/seargo/engines/yahoo"
 )
 
 func main() {
