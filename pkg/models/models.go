@@ -1,0 +1,65 @@
+package models
+
+import (
+	"fmt"
+	"hash/fnv"
+	"time"
+)
+
+type Category string
+
+const (
+	CategoryGeneral Category = "general"
+	CategoryImages  Category = "images"
+	CategoryVideos  Category = "videos"
+	CategoryNews    Category = "news"
+)
+
+type Request struct {
+	Query      string   `form:"q" binding:"required"`
+	Category   Category `form:"category"`
+	Language   string   `form:"language"`
+	SafeSearch bool     `form:"safesearch"`
+	TimeRange  string   `form:"time_range"`
+	Page       int      `form:"page"`
+	PageSize   int      `form:"page_size"`
+}
+
+func (r *Request) CacheKey() string {
+	h := fnv.New64a()
+	h.Write([]byte(r.Query))
+	return fmt.Sprintf("search:%s:%s:%d:%s:%d:%x",
+		r.Category, r.Language, boolToInt(r.SafeSearch),
+		r.TimeRange, r.Page, h.Sum64())
+}
+
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+type Result struct {
+	Title        string     `json:"title"`
+	URL          string     `json:"url"`
+	Content      string     `json:"content"`
+	Engine       string     `json:"engine"`
+	Category     Category   `json:"category"`
+	Score        float64    `json:"score"`
+	ThumbnailURL string     `json:"thumbnail_url,omitempty"`
+	PublishedAt  *time.Time `json:"published_at,omitempty"`
+}
+
+type Response struct {
+	Query          string   `json:"query"`
+	Category       Category `json:"category"`
+	Results        []Result `json:"results"`
+	Suggestions    []string `json:"suggestions"`
+	Total          int      `json:"total"`
+	Page           int      `json:"page"`
+	PageSize       int      `json:"page_size"`
+	EnginesUsed    []string `json:"engines_used"`
+	EnginesFailed  []string `json:"engines_failed"`
+	ResponseTimeMs int64    `json:"response_time_ms"`
+}
