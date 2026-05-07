@@ -1,7 +1,9 @@
 package server
 
 import (
+	"io/fs"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/pkg/models"
+	"github.com/seargo/seargo/web"
 )
 
 func (s *Server) setupRoutes() {
@@ -22,6 +25,19 @@ func (s *Server) setupRoutes() {
 
 	s.router.GET("/health", s.handleHealth)
 	s.router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Static files (React frontend)
+	dist, err := fs.Sub(web.Dist, "dist")
+	if err == nil {
+		fileServer := http.FileServer(http.FS(dist))
+		s.router.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			if strings.HasPrefix(path, "/api/") || path == "/health" || path == "/metrics" {
+				return
+			}
+			fileServer.ServeHTTP(c.Writer, c.Request)
+		})
+	}
 }
 
 func (s *Server) handleSearch(c *gin.Context) {
