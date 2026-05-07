@@ -2,6 +2,7 @@ package logger
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ type Logger struct {
 
 func Init(level string, output string) error {
 	initOnce.Do(func() {
+		flag.Set("logtostderr", "true")
 		mlog.SetEncoder(mlog.NewJSONEncoder())
 
 		switch strings.ToLower(level) {
