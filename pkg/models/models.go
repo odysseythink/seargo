@@ -9,11 +9,25 @@ import (
 type Category string
 
 const (
-	CategoryGeneral Category = "general"
-	CategoryImages  Category = "images"
-	CategoryVideos  Category = "videos"
-	CategoryNews    Category = "news"
+	CategoryGeneral     Category = "general"
+	CategoryImages      Category = "images"
+	CategoryVideos      Category = "videos"
+	CategoryNews        Category = "news"
+	CategoryMap         Category = "map"
+	CategoryMusic       Category = "music"
+	CategoryIT          Category = "it"
+	CategoryScience     Category = "science"
+	CategoryFiles       Category = "files"
+	CategorySocialMedia Category = "social media"
 )
+
+func AllCategories() []Category {
+	return []Category{
+		CategoryGeneral, CategoryImages, CategoryVideos, CategoryNews,
+		CategoryMap, CategoryMusic, CategoryIT, CategoryScience,
+		CategoryFiles, CategorySocialMedia,
+	}
+}
 
 type Request struct {
 	Query      string   `form:"q" binding:"required"`

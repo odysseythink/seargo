@@ -36,3 +36,38 @@ func TestCacheKeyIncludesPageSize(t *testing.T) {
     assert.NotEqual(t, r1.CacheKey(), r2.CacheKey(),
         "Different page sizes should produce different cache keys")
 }
+
+func TestAllCategories(t *testing.T) {
+    cats := AllCategories()
+    assert.Len(t, cats, 10)
+    // First four must match original order
+    assert.Equal(t, CategoryGeneral, cats[0])
+    assert.Equal(t, CategoryImages, cats[1])
+    assert.Equal(t, CategoryVideos, cats[2])
+    assert.Equal(t, CategoryNews, cats[3])
+    // Verify new categories exist
+    catSet := make(map[Category]bool)
+    for _, c := range cats {
+        catSet[c] = true
+    }
+    assert.True(t, catSet[CategoryMap])
+    assert.True(t, catSet[CategoryMusic])
+    assert.True(t, catSet[CategoryIT])
+    assert.True(t, catSet[CategoryScience])
+    assert.True(t, catSet[CategoryFiles])
+    assert.True(t, catSet[CategorySocialMedia])
+}
+
+func TestCategoryValues(t *testing.T) {
+    // Verify string values
+    assert.Equal(t, "general", string(CategoryGeneral))
+    assert.Equal(t, "images", string(CategoryImages))
+    assert.Equal(t, "videos", string(CategoryVideos))
+    assert.Equal(t, "news", string(CategoryNews))
+    assert.Equal(t, "map", string(CategoryMap))
+    assert.Equal(t, "music", string(CategoryMusic))
+    assert.Equal(t, "it", string(CategoryIT))
+    assert.Equal(t, "science", string(CategoryScience))
+    assert.Equal(t, "files", string(CategoryFiles))
+    assert.Equal(t, "social media", string(CategorySocialMedia))
+}

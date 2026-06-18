@@ -215,6 +215,8 @@ func (s *Scheduler) cacheTTL(cat models.Category) time.Duration {
 		return 2 * time.Minute
 	case models.CategoryNews:
 		return 15 * time.Second
+	case models.CategoryVideos:
+		return 2 * time.Minute
 	default:
 		return 30 * time.Second
 	}
