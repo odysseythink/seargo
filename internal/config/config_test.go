@@ -26,6 +26,85 @@ func TestValidate(t *testing.T) {
 	assert.Equal(t, 10, cfg.Search.MaxResults)
 }
 
+func TestValidateBadPort(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Server.Port = 0
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "port")
+
+	cfg.Server.Port = 70000
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "port")
+}
+
+func TestValidateSafeSearch(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Search.SafeSearch = 3
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "safe_search")
+}
+
+func TestValidateDuplicateEngineNames(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Engines = []EngineConfig{
+		{Name: "google", Engine: "google"},
+		{Name: "google-alt", Engine: "google"},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "duplicate")
+}
+
+func TestValidateDuplicateShortcuts(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Engines = []EngineConfig{
+		{Name: "google", Engine: "google", Shortcut: "g"},
+		{Name: "github", Engine: "github", Shortcut: "g"},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "shortcut")
+}
+
+func TestValidateNegativeWeight(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Engines = []EngineConfig{
+		{Name: "google", Engine: "google", Weight: -1.0},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "weight")
+}
+
+func TestValidateUnknownCategory(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Engines = []EngineConfig{
+		{Name: "google", Engine: "google", Categories: []string{"general", "nonexistent"}},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "category")
+}
+
+func TestValidateHTTPProtocolVersion(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Server.HTTPProtocolVersion = "2.0"
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "http_protocol_version")
+}
+
+func TestValidateMethod(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Server.Method = "PUT"
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "method")
+}
+
 func TestEnvOverride(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.yml")

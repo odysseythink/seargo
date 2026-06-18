@@ -186,6 +186,15 @@ type CacheConfig struct {
 	RedisAddr string `yaml:"redis_addr"`
 }
 
+var validCategories = map[string]bool{
+	"general": true, "images": true, "videos": true, "news": true,
+	"map": true, "music": true, "it": true, "science": true,
+	"files": true, "social media": true,
+}
+
+var validHTTPVersions = map[string]bool{"1.0": true, "1.1": true}
+var validMethods = map[string]bool{"GET": true, "POST": true}
+
 // -------- Load --------
 
 func Load(path string) (*Config, error) {
@@ -593,18 +602,74 @@ func applyUseDefaultSettings(cfg *Config) {
 	cfg.UseDefaultSettings = nil
 }
 
-// -------- Validate (minimal for now, expanded in Task 4) --------
+// -------- Validate --------
 
 func (c *Config) Validate() error {
+	// Server
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("server.port must be between 1 and 65535, got %d", c.Server.Port)
+	}
+	if c.Server.HTTPProtocolVersion != "" && !validHTTPVersions[c.Server.HTTPProtocolVersion] {
+		return fmt.Errorf("server.http_protocol_version must be 1.0 or 1.1, got %q", c.Server.HTTPProtocolVersion)
+	}
+	if c.Server.Method != "" && !validMethods[c.Server.Method] {
+		return fmt.Errorf("server.method must be GET or POST, got %q", c.Server.Method)
+	}
+
+	// Search
+	if c.Search.SafeSearch < 0 || c.Search.SafeSearch > 2 {
+		return fmt.Errorf("search.safe_search must be 0, 1, or 2, got %d", c.Search.SafeSearch)
 	}
 	if c.Search.MaxResults <= 0 {
 		c.Search.MaxResults = 10
 	}
-	if c.Search.SafeSearch < 0 || c.Search.SafeSearch > 2 {
-		return fmt.Errorf("search.safe_search must be 0, 1, or 2, got %d", c.Search.SafeSearch)
+	if c.Search.DefaultCategory != "" && !validCategories[c.Search.DefaultCategory] {
+		return fmt.Errorf("search.default_category %q is not a valid category", c.Search.DefaultCategory)
 	}
+
+	// Engines
+	engineNames := make(map[string]bool)
+	engineShortcuts := make(map[string]string)
+	for i, eng := range c.Engines {
+		lookupName := eng.Engine
+		if lookupName == "" {
+			lookupName = eng.Name
+		}
+		if lookupName == "" {
+			return fmt.Errorf("engine[%d]: name and engine are both empty", i)
+		}
+
+		key := strings.ToLower(lookupName)
+		if engineNames[key] {
+			return fmt.Errorf("engine[%d]: duplicate engine name %q", i, lookupName)
+		}
+		engineNames[key] = true
+
+		if eng.Weight < 0 {
+			return fmt.Errorf("engine[%d] (%s): weight must be >= 0, got %f", i, lookupName, eng.Weight)
+		}
+
+		for _, cat := range eng.Categories {
+			if !validCategories[cat] {
+				return fmt.Errorf("engine[%d] (%s): unknown category %q", i, lookupName, cat)
+			}
+		}
+
+		if eng.Shortcut != "" {
+			if existing, ok := engineShortcuts[eng.Shortcut]; ok {
+				return fmt.Errorf("engine[%d] (%s): duplicate shortcut %q (already used by %s)", i, lookupName, eng.Shortcut, existing)
+			}
+			engineShortcuts[eng.Shortcut] = lookupName
+		}
+	}
+
+	// CategoriesAsTabs
+	for key := range c.CategoriesAsTabs {
+		if !validCategories[key] {
+			return fmt.Errorf("categories_as_tabs: unknown category %q", key)
+		}
+	}
+
 	return nil
 }
 
