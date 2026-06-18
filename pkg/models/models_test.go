@@ -115,3 +115,99 @@ func TestCategoryValues(t *testing.T) {
     assert.Equal(t, "files", string(CategoryFiles))
     assert.Equal(t, "social media", string(CategorySocialMedia))
 }
+
+func TestCacheKeyTableDriven(t *testing.T) {
+    tests := []struct {
+        name     string
+        req1     Request
+        req2     Request
+        wantSame bool
+    }{
+        {
+            name:     "same request → same key",
+            req1:     Request{Query: "test", Category: CategoryGeneral, SafeSearch: 1, Page: 1, PageSize: 10},
+            req2:     Request{Query: "test", Category: CategoryGeneral, SafeSearch: 1, Page: 1, PageSize: 10},
+            wantSame: true,
+        },
+        {
+            name:     "different query → different key",
+            req1:     Request{Query: "foo", Category: CategoryGeneral},
+            req2:     Request{Query: "bar", Category: CategoryGeneral},
+            wantSame: false,
+        },
+        {
+            name:     "different SafeSearch → different key",
+            req1:     Request{Query: "test", SafeSearch: 0},
+            req2:     Request{Query: "test", SafeSearch: 2},
+            wantSame: false,
+        },
+        {
+            name:     "different category → different key",
+            req1:     Request{Query: "test", Category: CategoryGeneral},
+            req2:     Request{Query: "test", Category: CategoryImages},
+            wantSame: false,
+        },
+        {
+            name:     "different page → different key",
+            req1:     Request{Query: "test", Page: 1, PageSize: 10},
+            req2:     Request{Query: "test", Page: 2, PageSize: 10},
+            wantSame: false,
+        },
+        {
+            name:     "different pageSize → different key",
+            req1:     Request{Query: "test", Page: 1, PageSize: 10},
+            req2:     Request{Query: "test", Page: 1, PageSize: 20},
+            wantSame: false,
+        },
+        {
+            name:     "zero-value SafeSearch is consistent",
+            req1:     Request{Query: "test", SafeSearch: 0, PageSize: 10},
+            req2:     Request{Query: "test", SafeSearch: 0, PageSize: 10},
+            wantSame: true,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            k1 := tt.req1.CacheKey()
+            k2 := tt.req2.CacheKey()
+            if tt.wantSame {
+                assert.Equal(t, k1, k2)
+            } else {
+                assert.NotEqual(t, k1, k2)
+            }
+        })
+    }
+}
+
+func TestCategoryValidValues(t *testing.T) {
+    tests := []struct {
+        category Category
+        valid    bool
+    }{
+        {CategoryGeneral, true},
+        {CategoryImages, true},
+        {CategoryVideos, true},
+        {CategoryNews, true},
+        {CategoryMap, true},
+        {CategoryMusic, true},
+        {CategoryIT, true},
+        {CategoryScience, true},
+        {CategoryFiles, true},
+        {CategorySocialMedia, true},
+        {Category("unknown"), false},
+        {Category(""), false},
+        {Category("GENERAL"), false},
+    }
+
+    validSet := make(map[Category]bool)
+    for _, c := range AllCategories() {
+        validSet[c] = true
+    }
+
+    for _, tt := range tests {
+        t.Run(string(tt.category), func(t *testing.T) {
+            assert.Equal(t, tt.valid, validSet[tt.category])
+        })
+    }
+}

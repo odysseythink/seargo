@@ -236,3 +236,110 @@ engines:
 	assert.Contains(t, names, "google")
 	assert.Contains(t, names, "wikipedia")
 }
+
+func TestLoadTableDriven(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr bool
+		check   func(t *testing.T, cfg *Config)
+	}{
+		{
+			name: "minimal valid config",
+			yaml: `
+server:
+  port: 8080
+search:
+  max_results: 10
+`,
+			check: func(t *testing.T, cfg *Config) {
+				assert.Equal(t, 8080, cfg.Server.Port)
+				assert.Equal(t, 10, cfg.Search.MaxResults)
+				assert.Equal(t, "127.0.0.1", cfg.Server.BindAddress)
+				assert.Equal(t, "simple", cfg.UI.DefaultTheme)
+			},
+		},
+		{
+			name: "full config with all blocks",
+			yaml: `
+general:
+  instance_name: "MySearGo"
+  debug: true
+search:
+  safe_search: 2
+  default_lang: "fr"
+  languages: ["fr", "en"]
+  max_results: 20
+server:
+  port: 9090
+  bind_address: "127.0.0.1"
+  http_protocol_version: "1.1"
+ui:
+  default_theme: "dark"
+  hotkeys: "vim"
+preferences:
+  lock: ["language", "theme"]
+`,
+			check: func(t *testing.T, cfg *Config) {
+				assert.Equal(t, "MySearGo", cfg.General.InstanceName)
+				assert.True(t, cfg.General.Debug)
+				assert.Equal(t, 2, cfg.Search.SafeSearch)
+				assert.Equal(t, "fr", cfg.Search.DefaultLang)
+				assert.Equal(t, []string{"fr", "en"}, cfg.Search.Languages)
+				assert.Equal(t, "1.1", cfg.Server.HTTPProtocolVersion)
+				assert.Equal(t, "dark", cfg.UI.DefaultTheme)
+				assert.Equal(t, "vim", cfg.UI.Hotkeys)
+				assert.Equal(t, []string{"language", "theme"}, cfg.Preferences.Lock)
+			},
+		},
+		{
+			name: "invalid port",
+			yaml: `
+server:
+  port: 70000
+`,
+			wantErr: true,
+		},
+		{
+			name: "invalid safesearch",
+			yaml: `
+server:
+  port: 8080
+search:
+  safe_search: 5
+`,
+			wantErr: true,
+		},
+		{
+			name: "duplicate engine name",
+			yaml: `
+server:
+  port: 8080
+engines:
+  - name: google
+    engine: google
+  - name: google2
+    engine: google
+`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.yml")
+			require.NoError(t, os.WriteFile(configPath, []byte(tt.yaml), 0644))
+
+			cfg, err := Load(configPath)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			if tt.check != nil {
+				tt.check(t, cfg)
+			}
+		})
+	}
+}

@@ -235,3 +235,46 @@ func TestPaginationPreservesOrder(t *testing.T) {
 	assert.Equal(t, "D", window2[0].Title)
 	assert.Equal(t, "E", window2[1].Title)
 }
+
+func TestPaginateTableDriven(t *testing.T) {
+	results := make([]models.Result, 25)
+	for i := 0; i < 25; i++ {
+		results[i] = models.Result{
+			Title: fmt.Sprintf("R%d", i),
+			URL:   fmt.Sprintf("https://ex.com/%d", i),
+			Score: float64(25 - i),
+		}
+	}
+
+	tests := []struct {
+		name      string
+		page      int
+		pageSize  int
+		wantLen   int
+		wantTotal int
+		wantFirst string
+		wantLast  string
+	}{
+		{"page1_size10", 1, 10, 10, 25, "R0", "R9"},
+		{"page2_size10", 2, 10, 10, 25, "R10", "R19"},
+		{"page3_size10", 3, 10, 5, 25, "R20", "R24"},
+		{"page4_size10", 4, 10, 0, 25, "", ""},
+		{"page0_defaults", 0, 10, 10, 25, "R0", "R9"},
+		{"page1_size5", 1, 5, 5, 25, "R0", "R4"},
+		{"page5_size5", 5, 5, 5, 25, "R20", "R24"},
+		{"page100_size10", 100, 10, 0, 25, "", ""},
+		{"zero_pagesize_defaults", 1, 0, 10, 25, "R0", "R9"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			window, total := paginate(results, tt.page, tt.pageSize)
+			assert.Equal(t, tt.wantTotal, total, "total")
+			assert.Len(t, window, tt.wantLen, "window length")
+			if tt.wantLen > 0 {
+				assert.Equal(t, tt.wantFirst, window[0].Title, "first item")
+				assert.Equal(t, tt.wantLast, window[tt.wantLen-1].Title, "last item")
+			}
+		})
+	}
+}
