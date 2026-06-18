@@ -60,7 +60,7 @@ func TestScheduler(t *testing.T) {
 			{Name: "slow", Enabled: true, Weight: 0.5, Timeout: 5},
 			{Name: "fail", Enabled: true, Weight: 1.0, Timeout: 5},
 		},
-		Outgoing: config.OutgoingConfig{Timeout: 15},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
 
 	s, err := NewScheduler(cfg, c)
@@ -101,7 +101,7 @@ func TestSchedulerTimeout(t *testing.T) {
 			{Name: "fast", Enabled: true, Weight: 1.0, Timeout: 5},
 			{Name: "slow", Enabled: true, Weight: 1.0, Timeout: 5},
 		},
-		Outgoing: config.OutgoingConfig{Timeout: 15},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
 
 	s, err := NewScheduler(cfg, c)
@@ -127,4 +127,58 @@ func TestSchedulerTimeout(t *testing.T) {
 	require.NoError(t, err)
 	// slow engine may or may not timeout depending on race; just verify no panic
 	assert.NotNil(t, resp)
+}
+
+func TestSelectEnginesDisabled(t *testing.T) {
+	c, _ := cache.NewMultiLevel("")
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		Search: config.SearchConfig{MaxResults: 10},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", Disabled: false, Weight: 1.0},
+			{Name: "bing", Engine: "bing", Disabled: true, Weight: 1.0},
+			{Name: "ddg", Engine: "duckduckgo", Disabled: false, Weight: 1.0},
+		},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
+	}
+
+	s, err := NewScheduler(cfg, c)
+	require.NoError(t, err)
+
+	s.RegisterEngine("google", &mockEngine{name: "google", category: models.CategoryGeneral})
+	s.RegisterEngine("bing", &mockEngine{name: "bing", category: models.CategoryGeneral})
+	s.RegisterEngine("duckduckgo", &mockEngine{name: "duckduckgo", category: models.CategoryGeneral})
+
+	selected := s.selectEngines(models.CategoryGeneral)
+	assert.Len(t, selected, 2)
+	names := make([]string, len(selected))
+	for i, e := range selected {
+		names[i] = e.Name()
+	}
+	assert.Contains(t, names, "google")
+	assert.Contains(t, names, "duckduckgo")
+	assert.NotContains(t, names, "bing")
+}
+
+func TestSelectEnginesPerCategory(t *testing.T) {
+	c, _ := cache.NewMultiLevel("")
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080},
+		Search: config.SearchConfig{MaxResults: 10},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", Categories: []string{"general", "images"}, Weight: 1.0},
+		},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
+	}
+
+	s, err := NewScheduler(cfg, c)
+	require.NoError(t, err)
+
+	s.RegisterEngine("google", &mockEngine{name: "google", category: models.CategoryGeneral})
+
+	selected := s.selectEngines(models.CategoryImages)
+	assert.Len(t, selected, 0, "engine only claims general, not images")
+
+	selected = s.selectEngines(models.CategoryGeneral)
+	assert.Len(t, selected, 1)
 }

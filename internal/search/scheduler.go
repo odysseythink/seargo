@@ -17,12 +17,13 @@ import (
 )
 
 type Scheduler struct {
-	engines       map[string]engine.Engine
-	engineConfigs map[string]config.EngineConfig
-	workerPool    *ants.Pool
-	cache         cache.Cache
-	globalTimeout time.Duration
+	engines              map[string]engine.Engine
+	engineConfigs        map[string]config.EngineConfig
+	workerPool           *ants.Pool
+	cache                cache.Cache
+	globalTimeout        time.Duration
 	defaultEngineTimeout time.Duration
+	suspension           *SuspensionTracker
 }
 
 func NewScheduler(cfg *config.Config, c cache.Cache) (*Scheduler, error) {
@@ -33,16 +34,21 @@ func NewScheduler(cfg *config.Config, c cache.Cache) (*Scheduler, error) {
 
 	engineCfgs := make(map[string]config.EngineConfig, len(cfg.Engines))
 	for _, ec := range cfg.Engines {
-		engineCfgs[ec.Name] = ec
+		key := ec.Engine
+		if key == "" {
+			key = ec.Name
+		}
+		engineCfgs[key] = ec
 	}
 
 	return &Scheduler{
-		engines:       make(map[string]engine.Engine),
-		engineConfigs: engineCfgs,
-		workerPool:    pool,
-		cache:         c,
-		globalTimeout: time.Duration(cfg.Outgoing.Timeout) * time.Second,
+		engines:              make(map[string]engine.Engine),
+		engineConfigs:        engineCfgs,
+		workerPool:           pool,
+		cache:                c,
+		globalTimeout:        time.Duration(cfg.Outgoing.RequestTimeout) * time.Second,
 		defaultEngineTimeout: 8 * time.Second,
+		suspension:           NewSuspensionTracker(cfg.Search),
 	}, nil
 }
 
@@ -95,9 +101,14 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 
 func (s *Scheduler) selectEngines(cat models.Category) []engine.Engine {
 	var selected []engine.Engine
-	for name, e := range s.engines {
+	for _, e := range s.engines {
+		name := e.Name()
 		cfg, ok := s.engineConfigs[name]
-		if !ok || !cfg.Enabled {
+		if !ok || cfg.Disabled {
+			continue
+		}
+		// Check suspension
+		if s.suspension != nil && s.suspension.IsSuspended(name) {
 			continue
 		}
 		for _, c := range e.Categories() {
@@ -159,7 +170,7 @@ func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engin
 
 func (s *Scheduler) getEngineTimeout(name string) time.Duration {
 	if cfg, ok := s.engineConfigs[name]; ok && cfg.Timeout > 0 {
-		return time.Duration(cfg.Timeout) * time.Second
+		return time.Duration(cfg.Timeout * float64(time.Second))
 	}
 	return s.defaultEngineTimeout
 }
@@ -207,6 +218,18 @@ func (s *Scheduler) score(r models.Result) float64 {
 		return r.Score
 	}
 	return r.Score * cfg.Weight
+}
+
+// SuspensionTracker tracks engine suspension state.
+// Full implementation in Task 13.
+type SuspensionTracker struct{}
+
+func NewSuspensionTracker(cfg config.SearchConfig) *SuspensionTracker {
+	return nil // stub
+}
+
+func (st *SuspensionTracker) IsSuspended(name string) bool {
+	return false // stub
 }
 
 func (s *Scheduler) cacheTTL(cat models.Category) time.Duration {
