@@ -87,3 +87,73 @@ engines:
 	assert.Len(t, cfg.Engines, 1)
 	assert.Equal(t, "google", cfg.Engines[0].Engine)
 }
+
+func TestUseDefaultSettingsRemove(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "user.yml")
+	content := `
+use_default_settings:
+  engines:
+    remove:
+      - bing
+      - yahoo
+engines:
+  - name: google
+    engine: google
+    categories: [general]
+    weight: 1.0
+  - name: bing
+    engine: bing
+    categories: [general]
+    weight: 0.8
+  - name: yahoo
+    engine: yahoo
+    categories: [general]
+    weight: 0.7
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0644))
+
+	cfg, err := Load(configPath)
+	require.NoError(t, err)
+
+	// After remove, only google should remain
+	require.Equal(t, 1, len(cfg.Engines))
+	assert.Equal(t, "google", cfg.Engines[0].Engine)
+	// UseDefaultSettings should be consumed (nil)
+	assert.Nil(t, cfg.UseDefaultSettings)
+}
+
+func TestUseDefaultSettingsKeepOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "user.yml")
+	content := `
+use_default_settings:
+  engines:
+    keep_only:
+      - google
+      - wikipedia
+engines:
+  - name: google
+    engine: google
+    categories: [general]
+  - name: bing
+    engine: bing
+    categories: [general]
+  - name: wikipedia
+    engine: wikipedia
+    categories: [general]
+  - name: yahoo
+    engine: yahoo
+    categories: [general]
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(content), 0644))
+
+	cfg, err := Load(configPath)
+	require.NoError(t, err)
+
+	// After keep_only, only google and wikipedia should remain
+	require.Equal(t, 2, len(cfg.Engines))
+	names := []string{cfg.Engines[0].Engine, cfg.Engines[1].Engine}
+	assert.Contains(t, names, "google")
+	assert.Contains(t, names, "wikipedia")
+}

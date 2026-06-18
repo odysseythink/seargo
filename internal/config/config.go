@@ -554,10 +554,43 @@ func overlayUI(dst *UIConfig, src *UIConfig) {
 	}
 }
 
-// -------- Placeholder (filled in Task 3) --------
+// -------- Use Default Settings --------
 
 func applyUseDefaultSettings(cfg *Config) {
-	// Stub — full implementation in Task 3
+	if cfg.UseDefaultSettings == nil {
+		return
+	}
+
+	// Apply engine remove/keep_only filters
+	removeSet := make(map[string]bool)
+	for _, name := range cfg.UseDefaultSettings.Engines.Remove {
+		removeSet[strings.ToLower(name)] = true
+	}
+	keepSet := make(map[string]bool)
+	hasKeepOnly := len(cfg.UseDefaultSettings.Engines.KeepOnly) > 0
+	for _, name := range cfg.UseDefaultSettings.Engines.KeepOnly {
+		keepSet[strings.ToLower(name)] = true
+	}
+
+	filtered := make([]EngineConfig, 0, len(cfg.Engines))
+	for _, eng := range cfg.Engines {
+		lookupName := strings.ToLower(eng.Engine)
+		if lookupName == "" {
+			lookupName = strings.ToLower(eng.Name)
+		}
+
+		if removeSet[lookupName] {
+			continue
+		}
+		if hasKeepOnly && !keepSet[lookupName] {
+			continue
+		}
+		filtered = append(filtered, eng)
+	}
+	cfg.Engines = filtered
+
+	// Consume the use_default_settings block
+	cfg.UseDefaultSettings = nil
 }
 
 // -------- Validate (minimal for now, expanded in Task 4) --------
