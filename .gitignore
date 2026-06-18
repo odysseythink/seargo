@@ -9,3 +9,4 @@ vendor/
 .env
 web/node_modules/
 web/dist/
+.ody-code/

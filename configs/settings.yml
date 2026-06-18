@@ -1,43 +1,130 @@
-server:
-  port: 8080
-  bind_address: "0.0.0.0"
+general:
+  instance_name: "SearGo"
+  debug: false
+  enable_metrics: true
+
+brand:
+  issue_url: "https://github.com/searxng/searxng/issues"
+  docs_url: "https://docs.searxng.org"
+  public_instances: "https://searx.space"
+  wiki_url: "https://github.com/searxng/searxng/wiki"
+  new_issue_url: "https://github.com/searxng/searxng/issues/new"
 
 search:
   safe_search: 1
   autocomplete: "google"
+  autocomplete_min: 4
   default_lang: "zh-CN"
   default_category: "general"
+  languages: ["zh-CN", "en", "en-US"]
   max_results: 10
+  ban_time_on_fail: 5.0
+  max_ban_time_on_fail: 120.0
+  formats: ["html", "json"]
+  max_page: 0
+  suspended_times:
+    SearxEngineAccessDenied: 86400
+    SearxEngineCaptcha: 86400
+    SearxEngineTooManyRequests: 3600
+    cf_SearxEngineCaptcha: 1296000
+    cf_SearxEngineAccessDenied: 86400
+    recaptcha_SearxEngineCaptcha: 604800
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  limiter: false
+  public_instance: false
+  http_protocol_version: "1.0"
+  method: "POST"
+
+outgoing:
+  request_timeout: 3.0
+  useragent: "SearGo/1.0"
+  enable_http2: true
+  pool_connections: 100
+  pool_maxsize: 10
+  keepalive_expiry: 5.0
+  max_redirects: 30
+  retries: 0
+  using_tor_proxy: false
+
+ui:
+  default_theme: "simple"
+  cache_url: "https://web.archive.org/web/"
+  search_on_category_select: true
+  hotkeys: "default"
+  url_formatting: "pretty"
+
+preferences:
+  lock: []
+
+valkey:
+
+plugins: {}
+
+categories_as_tabs:
+  general:
+    engines: []
+  images:
+    engines: []
+  videos:
+    engines: []
+  news:
+    engines: []
+  map:
+    engines: []
+  music:
+    engines: []
+  it:
+    engines: []
+  science:
+    engines: []
+  files:
+    engines: []
+  social media:
+    engines: []
 
 engines:
   - name: google
-    enabled: true
+    engine: google
+    shortcut: g
+    categories: [general]
     weight: 1.0
-    timeout: 10
+    timeout: 10.0
   - name: bing
-    enabled: true
+    engine: bing
+    shortcut: b
+    categories: [general]
     weight: 0.8
-    timeout: 10
+    timeout: 10.0
   - name: duckduckgo
-    enabled: true
+    engine: duckduckgo
+    shortcut: ddg
+    categories: [general]
     weight: 0.9
-    timeout: 10
+    timeout: 10.0
   - name: brave
-    enabled: true
+    engine: brave
+    shortcut: br
+    categories: [general]
     weight: 0.8
-    timeout: 10
+    timeout: 10.0
   - name: wikipedia
-    enabled: true
+    engine: wikipedia
+    shortcut: wp
+    categories: [general]
     weight: 0.6
-    timeout: 10
+    timeout: 10.0
   - name: yahoo
-    enabled: true
+    engine: yahoo
+    shortcut: y
+    categories: [general]
     weight: 0.7
-    timeout: 10
+    timeout: 10.0
 
-outgoing:
-  request_timeout: 15
-  useragent: "SearGo/1.0"
+doi_resolvers: {}
+default_doi_resolver: "oadoi.org"
 
 cache:
   enabled: true
