@@ -82,9 +82,29 @@ func (s *Server) handleEngines(c *gin.Context) {
 }
 
 func (s *Server) handleCategories(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"categories": []string{"general", "images", "videos", "news"},
-	})
+	type categoryEntry struct {
+		Name    string   `json:"name"`
+		Engines []string `json:"engines"`
+	}
+
+	var categories []categoryEntry
+	for _, cat := range models.AllCategories() {
+		catName := string(cat)
+		tabCfg, inTabs := s.config.CategoriesAsTabs[catName]
+		if !inTabs {
+			continue
+		}
+		engines := tabCfg.Engines
+		if engines == nil {
+			engines = []string{}
+		}
+		categories = append(categories, categoryEntry{
+			Name:    catName,
+			Engines: engines,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"categories": categories})
 }
 
 func (s *Server) handleConfig(c *gin.Context) {

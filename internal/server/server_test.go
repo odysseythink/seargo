@@ -39,6 +39,37 @@ func TestHealthEndpoint(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "ok")
 }
 
+func TestCategoriesEndpoint(t *testing.T) {
+	cfg := &config.Config{
+		Server: config.ServerConfig{Port: 8080, BindAddress: "0.0.0.0"},
+		Search: config.SearchConfig{MaxResults: 10},
+		CategoriesAsTabs: map[string]config.CategoryTabConfig{
+			"general": {Engines: []string{"google", "bing"}},
+			"images":  {Engines: []string{"google"}},
+			"news":    {},
+		},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", Categories: []string{"general", "images"}, Weight: 1.0},
+			{Name: "bing", Engine: "bing", Categories: []string{"general"}, Weight: 1.0},
+		},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
+	}
+	c, _ := cache.NewMultiLevel("")
+	sched, _ := search.NewScheduler(cfg, c)
+
+	srv := New(cfg, sched)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/api/categories", nil)
+	srv.router.ServeHTTP(w, req)
+
+	require.Equal(t, 200, w.Code)
+	body := w.Body.String()
+	assert.Contains(t, body, "general")
+	assert.Contains(t, body, "images")
+	assert.Contains(t, body, "news")
+	assert.NotContains(t, body, `"videos"`)
+}
+
 func TestConfigEndpoint(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{Port: 8080},
