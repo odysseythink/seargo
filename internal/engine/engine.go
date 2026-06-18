@@ -27,17 +27,19 @@ type Engine interface {
 
 // Capabilities describes what features an engine supports.
 type Capabilities struct {
-	SupportsSafeSearch bool `json:"supports_safe_search"`
-	SupportsLanguage   bool `json:"supports_language"`
-	SupportsTimeRange  bool `json:"supports_time_range"`
-	SupportsPagination bool `json:"supports_pagination"`
-	RequiresAPIKey     bool `json:"requires_api_key"`
+	SupportsSafeSearch bool   `json:"supports_safe_search"`
+	SupportsLanguage   bool   `json:"supports_language"`
+	SupportsTimeRange  bool   `json:"supports_time_range"`
+	SupportsPagination bool   `json:"supports_pagination"`
+	RequiresAPIKey     bool   `json:"requires_api_key"`
+	Shortcut           string `json:"shortcut"`
 }
 
 // Info describes an engine for API responses.
 type Info struct {
 	Name         string       `json:"name"`
 	Categories   []string     `json:"categories"`
+	Shortcut     string       `json:"shortcut"`
 	Capabilities Capabilities `json:"capabilities"`
 	Enabled      bool         `json:"enabled"`
 }

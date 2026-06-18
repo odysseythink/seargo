@@ -46,3 +46,26 @@ func TestRegistry(t *testing.T) {
 	names := Names()
 	assert.Len(t, names, 2)
 }
+
+func TestCapabilitiesAndInfo(t *testing.T) {
+	caps := Capabilities{
+		SupportsSafeSearch: true,
+		SupportsLanguage:   true,
+		SupportsTimeRange:  false,
+		SupportsPagination: true,
+		RequiresAPIKey:     false,
+		Shortcut:           "g",
+	}
+	info := Info{
+		Name:         "google",
+		Categories:   []string{"general", "images"},
+		Shortcut:     "g",
+		Capabilities: caps,
+		Enabled:      true,
+	}
+	assert.Equal(t, "google", info.Name)
+	assert.Equal(t, "g", info.Shortcut)
+	assert.Equal(t, "g", info.Capabilities.Shortcut)
+	assert.True(t, info.Capabilities.SupportsPagination)
+	assert.False(t, info.Capabilities.SupportsTimeRange)
+}
