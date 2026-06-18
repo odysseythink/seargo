@@ -81,12 +81,13 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	defer cancel()
 
 	// 4. Concurrent query
-	results, enginesUsed, enginesFailed := s.queryEngines(ctx, req, selected)
+	results, enginesUsed, enginesFailed, suggestions := s.queryEngines(ctx, req, selected)
 
 	// 5. Post-process
 	response := s.postProcess(results, req)
 	response.EnginesUsed = enginesUsed
 	response.EnginesFailed = enginesFailed
+	response.Suggestions = suggestions
 	response.ResponseTimeMs = time.Since(start).Milliseconds()
 
 	metrics.SearchResultsTotal.WithLabelValues(string(req.Category)).Add(float64(len(response.Results)))
@@ -121,9 +122,14 @@ func (s *Scheduler) selectEngines(cat models.Category) []engine.Engine {
 	return selected
 }
 
-func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engines []engine.Engine) ([]models.Result, []string, []string) {
+type engineResult struct {
+	results     []models.Result
+	suggestions []string
+}
+
+func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engines []engine.Engine) ([]models.Result, []string, []string, []string) {
 	var wg sync.WaitGroup
-	resultCh := make(chan []models.Result, len(engines))
+	resultCh := make(chan engineResult, len(engines))
 	var usedMu, failedMu sync.Mutex
 	enginesUsed := make([]string, 0, len(engines))
 	enginesFailed := make([]string, 0, len(engines))
@@ -155,17 +161,25 @@ func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engin
 			usedMu.Lock()
 			enginesUsed = append(enginesUsed, eng.Name())
 			usedMu.Unlock()
-			resultCh <- resp.Results
+			resultCh <- engineResult{
+				results:     resp.Results,
+				suggestions: resp.Suggestions,
+			}
 		})
 	}
 
 	go func() { wg.Wait(); close(resultCh) }()
 
 	var allResults []models.Result
+	var allSuggestions [][]string
 	for r := range resultCh {
-		allResults = append(allResults, r...)
+		allResults = append(allResults, r.results...)
+		if len(r.suggestions) > 0 {
+			allSuggestions = append(allSuggestions, r.suggestions)
+		}
 	}
-	return allResults, enginesUsed, enginesFailed
+	merged := mergeSuggestions(allSuggestions)
+	return allResults, enginesUsed, enginesFailed, merged
 }
 
 func (s *Scheduler) getEngineTimeout(name string) time.Duration {
