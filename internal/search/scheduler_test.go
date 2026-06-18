@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -181,4 +182,56 @@ func TestSelectEnginesPerCategory(t *testing.T) {
 
 	selected = s.selectEngines(models.CategoryGeneral)
 	assert.Len(t, selected, 1)
+}
+
+func TestPagination(t *testing.T) {
+	results := make([]models.Result, 25)
+	for i := 0; i < 25; i++ {
+		results[i] = models.Result{
+			Title: fmt.Sprintf("R%d", i),
+			URL:   fmt.Sprintf("https://example.com/%d", i),
+			Score: float64(25 - i),
+		}
+	}
+	window, total := paginate(results, 1, 10)
+	assert.Equal(t, 25, total)
+	assert.Len(t, window, 10)
+	assert.Equal(t, "R0", window[0].Title)
+
+	window2, total2 := paginate(results, 2, 10)
+	assert.Equal(t, 25, total2)
+	assert.Len(t, window2, 10)
+	assert.Equal(t, "R10", window2[0].Title)
+
+	window3, total3 := paginate(results, 3, 10)
+	assert.Equal(t, 25, total3)
+	assert.Len(t, window3, 5)
+
+	window4, total4 := paginate(results, 100, 10)
+	assert.Equal(t, 25, total4)
+	assert.Len(t, window4, 0)
+
+	window5, total5 := paginate(results, 0, 10)
+	assert.Equal(t, 25, total5)
+	assert.Len(t, window5, 10)
+}
+
+func TestPaginationPreservesOrder(t *testing.T) {
+	results := []models.Result{
+		{Title: "A", URL: "https://a.com", Score: 3.0},
+		{Title: "B", URL: "https://b.com", Score: 2.0},
+		{Title: "C", URL: "https://c.com", Score: 1.0},
+		{Title: "D", URL: "https://d.com", Score: 0.5},
+		{Title: "E", URL: "https://e.com", Score: 0.1},
+	}
+	window, total := paginate(results, 1, 3)
+	assert.Equal(t, 5, total)
+	assert.Len(t, window, 3)
+	assert.Equal(t, "A", window[0].Title)
+	assert.Equal(t, "B", window[1].Title)
+	assert.Equal(t, "C", window[2].Title)
+
+	window2, _ := paginate(results, 2, 3)
+	assert.Equal(t, "D", window2[0].Title)
+	assert.Equal(t, "E", window2[1].Title)
 }

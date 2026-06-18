@@ -175,6 +175,30 @@ func (s *Scheduler) getEngineTimeout(name string) time.Duration {
 	return s.defaultEngineTimeout
 }
 
+// paginate returns a stable windowed slice and the total count before windowing.
+// page is 1-based; page=0 defaults to 1. pageSize <= 0 defaults to 10.
+func paginate(results []models.Result, page, pageSize int) ([]models.Result, int) {
+	total := len(results)
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+
+	start := (page - 1) * pageSize
+	if start >= total {
+		return []models.Result{}, total
+	}
+
+	end := start + pageSize
+	if end > total {
+		end = total
+	}
+
+	return results[start:end], total
+}
+
 func (s *Scheduler) postProcess(results []models.Result, req *models.Request) *models.Response {
 	deduped := deduplicate(results)
 	sort.Slice(deduped, func(i, j int) bool {
@@ -185,15 +209,14 @@ func (s *Scheduler) postProcess(results []models.Result, req *models.Request) *m
 	if pageSize <= 0 {
 		pageSize = 10
 	}
-	if len(deduped) > pageSize {
-		deduped = deduped[:pageSize]
-	}
+
+	window, total := paginate(deduped, req.Page, pageSize)
 
 	return &models.Response{
 		Query:    req.Query,
 		Category: req.Category,
-		Results:  deduped,
-		Total:    len(deduped),
+		Results:  window,
+		Total:    total,
 		Page:     req.Page,
 		PageSize: pageSize,
 	}
