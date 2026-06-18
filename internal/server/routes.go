@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/pkg/models"
 	"github.com/seargo/seargo/web"
@@ -71,14 +72,37 @@ func (s *Server) handleEngines(c *gin.Context) {
 		for i, c := range e.Categories() {
 			cats[i] = string(c)
 		}
+		caps := e.Capabilities()
+
+		enabled := true
+		shortcut := ""
+		if ec, ok := s.configEngineConfigs()[name]; ok {
+			enabled = !ec.Disabled
+			shortcut = ec.Shortcut
+		}
+		caps.Shortcut = shortcut
+
 		infos = append(infos, engine.Info{
 			Name:         name,
 			Categories:   cats,
-			Capabilities: e.Capabilities(),
-			Enabled:      true, // TODO: read from config
+			Shortcut:     shortcut,
+			Capabilities: caps,
+			Enabled:      enabled,
 		})
 	}
 	c.JSON(http.StatusOK, gin.H{"engines": infos})
+}
+
+func (s *Server) configEngineConfigs() map[string]config.EngineConfig {
+	result := make(map[string]config.EngineConfig, len(s.config.Engines))
+	for _, ec := range s.config.Engines {
+		key := ec.Engine
+		if key == "" {
+			key = ec.Name
+		}
+		result[key] = ec
+	}
+	return result
 }
 
 func (s *Server) handleCategories(c *gin.Context) {
