@@ -149,6 +149,10 @@ func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engin
 			if err != nil {
 				metrics.EngineQueriesTotal.WithLabelValues(eng.Name(), "failed").Inc()
 				logger.Warn("engine failed", "engine", eng.Name(), "error", err)
+				if s.suspension != nil {
+					errorClass := classifyError(err)
+					s.suspension.Ban(eng.Name(), errorClass)
+				}
 				failedMu.Lock()
 				enginesFailed = append(enginesFailed, eng.Name())
 				failedMu.Unlock()
@@ -255,18 +259,6 @@ func (s *Scheduler) score(r models.Result) float64 {
 		return r.Score
 	}
 	return r.Score * cfg.Weight
-}
-
-// SuspensionTracker tracks engine suspension state.
-// Full implementation in Task 13.
-type SuspensionTracker struct{}
-
-func NewSuspensionTracker(cfg config.SearchConfig) *SuspensionTracker {
-	return nil // stub
-}
-
-func (st *SuspensionTracker) IsSuspended(name string) bool {
-	return false // stub
 }
 
 func (s *Scheduler) cacheTTL(cat models.Category) time.Duration {
