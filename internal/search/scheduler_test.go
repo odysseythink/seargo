@@ -14,6 +14,7 @@ import (
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/pkg/models"
 )
@@ -36,7 +37,7 @@ type mockEngine struct {
 func (m *mockEngine) Name() string                  { return m.name }
 func (m *mockEngine) Categories() []models.Category { return []models.Category{m.category} }
 func (m *mockEngine) Capabilities() engine.Capabilities { return engine.Capabilities{} }
-func (m *mockEngine) Init(cfg map[string]any) error     { return nil }
+func (m *mockEngine) Init(client *httpx.Client, cfg engine.EngineInitConfig) error { return nil }
 func (m *mockEngine) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
 	if m.fail {
 		return nil, errors.New("engine failed")

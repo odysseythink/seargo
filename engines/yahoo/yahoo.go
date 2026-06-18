@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-resty/resty/v2"
 
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -19,7 +18,7 @@ func init() {
 }
 
 type Yahoo struct {
-	client *resty.Client
+	client *httpx.Client
 }
 
 func (y *Yahoo) Name() string { return "yahoo" }
@@ -36,12 +35,8 @@ func (y *Yahoo) Capabilities() engine.Capabilities {
 	}
 }
 
-func (y *Yahoo) Init(cfg map[string]any) error {
-	y.client = resty.New().
-		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
-		SetHeader("Referer", "https://search.yahoo.com/").
-		SetTimeout(8 * time.Second).
-		SetRetryCount(1)
+func (y *Yahoo) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
+	y.client = client
 	return nil
 }
 

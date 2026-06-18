@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-resty/resty/v2"
 
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -19,7 +18,7 @@ func init() {
 }
 
 type Google struct {
-	client *resty.Client
+	client *httpx.Client
 }
 
 func (g *Google) Name() string { return "google" }
@@ -36,12 +35,8 @@ func (g *Google) Capabilities() engine.Capabilities {
 	}
 }
 
-func (g *Google) Init(cfg map[string]any) error {
-	g.client = resty.New().
-		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
-		SetHeader("Referer", "https://www.google.com/").
-		SetTimeout(8 * time.Second).
-		SetRetryCount(1)
+func (g *Google) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
+	g.client = client
 	return nil
 }
 
@@ -59,7 +54,6 @@ func (g *Google) Search(ctx context.Context, req *models.Request) (*models.Respo
 	}
 
 	var results []models.Result
-	// Try multiple selectors since Google changes their HTML frequently
 	selectors := []string{"div.g", "div.srg div.g", "#search div.g"}
 	for _, sel := range selectors {
 		doc.Find(sel).Each(func(i int, s *goquery.Selection) {

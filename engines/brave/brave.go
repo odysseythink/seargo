@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-resty/resty/v2"
 
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -19,7 +18,7 @@ func init() {
 }
 
 type Brave struct {
-	client *resty.Client
+	client *httpx.Client
 }
 
 func (b *Brave) Name() string { return "brave" }
@@ -36,12 +35,8 @@ func (b *Brave) Capabilities() engine.Capabilities {
 	}
 }
 
-func (b *Brave) Init(cfg map[string]any) error {
-	b.client = resty.New().
-		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
-		SetHeader("Referer", "https://search.brave.com/").
-		SetTimeout(8 * time.Second).
-		SetRetryCount(1)
+func (b *Brave) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
+	b.client = client
 	return nil
 }
 

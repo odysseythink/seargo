@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/go-resty/resty/v2"
 
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -19,7 +18,7 @@ func init() {
 }
 
 type Wikipedia struct {
-	client *resty.Client
+	client *httpx.Client
 }
 
 func (w *Wikipedia) Name() string { return "wikipedia" }
@@ -35,11 +34,8 @@ func (w *Wikipedia) Capabilities() engine.Capabilities {
 	}
 }
 
-func (w *Wikipedia) Init(cfg map[string]any) error {
-	w.client = resty.New().
-		SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36").
-		SetTimeout(8 * time.Second).
-		SetRetryCount(1)
+func (w *Wikipedia) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
+	w.client = client
 	return nil
 }
 

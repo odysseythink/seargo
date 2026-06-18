@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -17,7 +18,7 @@ type mockEngine struct {
 func (m *mockEngine) Name() string                       { return m.name }
 func (m *mockEngine) Categories() []models.Category      { return nil }
 func (m *mockEngine) Capabilities() Capabilities         { return Capabilities{} }
-func (m *mockEngine) Init(cfg map[string]any) error      { return nil }
+func (m *mockEngine) Init(client *httpx.Client, cfg EngineInitConfig) error { return nil }
 func (m *mockEngine) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
 	return nil, nil
 }

@@ -3,15 +3,25 @@ package engine
 import (
 	"context"
 
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
+
+// EngineInitConfig holds per-engine configuration from the config file.
+type EngineInitConfig struct {
+	Name       string            // display name from config
+	Shortcut   string            // shortcut from config
+	Categories []models.Category // per-engine categories (overrides defaults)
+	Timeout    float64           // per-engine timeout in seconds
+	Extra      map[string]any    // arbitrary extra config
+}
 
 // Engine is the interface that all search engines must implement.
 type Engine interface {
 	Name() string
 	Categories() []models.Category
 	Capabilities() Capabilities
-	Init(cfg map[string]any) error
+	Init(client *httpx.Client, cfg EngineInitConfig) error
 	Search(ctx context.Context, req *models.Request) (*models.Response, error)
 }
 
