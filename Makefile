@@ -8,7 +8,7 @@ build:
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/seargo
 
 test:
-	go test -v ./...
+	go test -v -race -cover ./...
 
 run:
 	go run ./cmd/seargo -config configs/settings.yml
