@@ -76,8 +76,34 @@ func TestCategoriesEndpoint(t *testing.T) {
 
 func TestConfigEndpoint(t *testing.T) {
 	cfg := &config.Config{
-		Server: config.ServerConfig{Port: 8080},
-		Search: config.SearchConfig{DefaultLang: "zh-CN", DefaultCategory: "general"},
+		Server: config.ServerConfig{
+			Port:            8080,
+			BindAddress:     "0.0.0.0",
+			PublicInstance:  false,
+			Method:          "POST",
+			SecretKey:       "super-secret-do-not-leak",
+		},
+		Search: config.SearchConfig{
+			DefaultLang:     "zh-CN",
+			DefaultCategory: "general",
+			SafeSearch:      1,
+			Autocomplete:    "google",
+			MaxResults:      10,
+		},
+		General: config.GeneralConfig{
+			InstanceName:  "TestInstance",
+			Debug:         false,
+			EnableMetrics: true,
+		},
+		UI: config.UIConfig{
+			DefaultTheme:  "simple",
+			DefaultLocale: "",
+			Hotkeys:       "default",
+		},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", APIKey: "secret-api-key"},
+		},
 	}
 	c, _ := cache.NewMultiLevel("")
 	sched, _ := search.NewScheduler(cfg, c)
@@ -88,7 +114,19 @@ func TestConfigEndpoint(t *testing.T) {
 	srv.router.ServeHTTP(w, req)
 
 	require.Equal(t, 200, w.Code)
-	assert.Contains(t, w.Body.String(), "zh-CN")
+	body := w.Body.String()
+
+	// Present: public config fields
+	assert.Contains(t, body, "zh-CN")
+	assert.Contains(t, body, "TestInstance")
+	assert.Contains(t, body, "google")
+
+	// Absent: secrets MUST NOT leak
+	assert.NotContains(t, body, "super-secret-do-not-leak")
+	assert.NotContains(t, body, "secret-api-key")
+	assert.NotContains(t, body, "SecretKey")
+	assert.NotContains(t, body, "APIKey")
+	assert.NotContains(t, body, "secret_key")
 }
 
 type mockEngineForServer struct {

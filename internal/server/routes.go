@@ -132,13 +132,95 @@ func (s *Server) handleCategories(c *gin.Context) {
 }
 
 func (s *Server) handleConfig(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"default_language": s.config.Search.DefaultLang,
-		"default_category": s.config.Search.DefaultCategory,
-		"safe_search":      s.config.Search.SafeSearch,
-		"autocomplete":     s.config.Search.Autocomplete,
-		"max_results":      s.config.Search.MaxResults,
-	})
+	type configResponse struct {
+		General     generalConfigResponse     `json:"general"`
+		Search      searchConfigResponse      `json:"search"`
+		Server      serverConfigResponse      `json:"server"`
+		UI          uiConfigResponse          `json:"ui"`
+		Preferences preferencesConfigResponse `json:"preferences"`
+	}
+
+	resp := configResponse{
+		General: generalConfigResponse{
+			InstanceName:  s.config.General.InstanceName,
+			Debug:         s.config.General.Debug,
+			EnableMetrics: s.config.General.EnableMetrics,
+			DonationURL:   s.config.General.DonationURL,
+		},
+		Search: searchConfigResponse{
+			DefaultLanguage: s.config.Search.DefaultLang,
+			DefaultCategory: s.config.Search.DefaultCategory,
+			SafeSearch:      s.config.Search.SafeSearch,
+			Autocomplete:    s.config.Search.Autocomplete,
+			AutocompleteMin: s.config.Search.AutocompleteMin,
+			MaxResults:      s.config.Search.MaxResults,
+			Formats:         s.config.Search.Formats,
+		},
+		Server: serverConfigResponse{
+			PublicInstance:      s.config.Server.PublicInstance,
+			HTTPProtocolVersion: s.config.Server.HTTPProtocolVersion,
+			Method:              s.config.Server.Method,
+			ImageProxy:          s.config.Server.ImageProxy,
+			Limiter:             s.config.Server.Limiter,
+		},
+		UI: uiConfigResponse{
+			DefaultTheme:           s.config.UI.DefaultTheme,
+			DefaultLocale:          s.config.UI.DefaultLocale,
+			CenterAlignment:        s.config.UI.CenterAlignment,
+			ResultsOnNewTab:        s.config.UI.ResultsOnNewTab,
+			QueryInTitle:           s.config.UI.QueryInTitle,
+			SearchOnCategorySelect: s.config.UI.SearchOnCategorySelect,
+			Hotkeys:                s.config.UI.Hotkeys,
+			URLFormatting:          s.config.UI.URLFormatting,
+			SimpleStyle:            s.config.UI.ThemeArgs.SimpleStyle,
+		},
+		Preferences: preferencesConfigResponse{
+			Lock: s.config.Preferences.Lock,
+		},
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+type generalConfigResponse struct {
+	InstanceName  string `json:"instance_name"`
+	Debug         bool   `json:"debug"`
+	EnableMetrics bool   `json:"enable_metrics"`
+	DonationURL   string `json:"donation_url,omitempty"`
+}
+
+type searchConfigResponse struct {
+	DefaultLanguage string   `json:"default_language"`
+	DefaultCategory string   `json:"default_category"`
+	SafeSearch      int      `json:"safe_search"`
+	Autocomplete    string   `json:"autocomplete"`
+	AutocompleteMin int      `json:"autocomplete_min"`
+	MaxResults      int      `json:"max_results"`
+	Formats         []string `json:"formats"`
+}
+
+type serverConfigResponse struct {
+	PublicInstance      bool   `json:"public_instance"`
+	HTTPProtocolVersion string `json:"http_protocol_version"`
+	Method              string `json:"method"`
+	ImageProxy          bool   `json:"image_proxy"`
+	Limiter             bool   `json:"limiter"`
+}
+
+type uiConfigResponse struct {
+	DefaultTheme           string `json:"default_theme"`
+	DefaultLocale          string `json:"default_locale"`
+	CenterAlignment        bool   `json:"center_alignment"`
+	ResultsOnNewTab        bool   `json:"results_on_new_tab"`
+	QueryInTitle           bool   `json:"query_in_title"`
+	SearchOnCategorySelect bool   `json:"search_on_category_select"`
+	Hotkeys                string `json:"hotkeys"`
+	URLFormatting          string `json:"url_formatting"`
+	SimpleStyle            string `json:"simple_style"`
+}
+
+type preferencesConfigResponse struct {
+	Lock []string `json:"lock"`
 }
 
 func (s *Server) handleHealth(c *gin.Context) {
