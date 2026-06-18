@@ -26,7 +26,6 @@ func New(cfg *config.Config, scheduler *search.Scheduler) *Server {
 	r.Use(middleware.Recovery())
 	r.Use(middleware.RequestLogger())
 	r.Use(middleware.ErrorHandler())
-	r.Use(gin.Recovery())
 
 	s := &Server{
 		router:    r,

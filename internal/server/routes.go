@@ -44,20 +44,20 @@ func (s *Server) setupRoutes() {
 func (s *Server) handleSearch(c *gin.Context) {
 	var req models.Request
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.Error(err)
+		c.JSON(400, gin.H{"error": "invalid request: " + err.Error()})
 		return
 	}
 
-	if req.Category == "" {
-		req.Category = models.Category(s.config.Search.DefaultCategory)
-	}
-	if req.PageSize <= 0 {
-		req.PageSize = s.config.Search.MaxResults
-	}
+	req.Normalize(models.NormalizeDefaults{
+		DefaultLang:     s.config.Search.DefaultLang,
+		DefaultCategory: models.Category(s.config.Search.DefaultCategory),
+		DefaultPageSize: s.config.Search.MaxResults,
+		MaxResults:      s.config.Search.MaxResults,
+	})
 
 	resp, err := s.scheduler.Search(c.Request.Context(), &req)
 	if err != nil {
-		c.Error(err)
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 

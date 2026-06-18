@@ -35,13 +35,38 @@ func (st *SuspensionTracker) Ban(engineName, errorClass string) {
 	entry.count++
 	entry.reason = errorClass
 
-	duration := st.config.BanTimeOnFail * float64(entry.count)
-	if duration > st.config.MaxBanTimeOnFail {
-		duration = st.config.MaxBanTimeOnFail
+	// Check if there's a specific duration for this error class
+	var duration float64
+	if specificDuration := st.getSuspensionDuration(errorClass); specificDuration > 0 {
+		duration = specificDuration
+	} else {
+		// Escalating ban: base_time * count, capped at max_ban_time
+		duration = st.config.BanTimeOnFail * float64(entry.count)
+		if duration > st.config.MaxBanTimeOnFail {
+			duration = st.config.MaxBanTimeOnFail
+		}
 	}
 	entry.until = time.Now().Add(time.Duration(duration * float64(time.Second)))
 
 	st.bans[engineName] = entry
+}
+
+func (st *SuspensionTracker) getSuspensionDuration(errorClass string) float64 {
+	switch errorClass {
+	case "SearxEngineAccessDenied":
+		return st.config.SuspendedTimes.SearxEngineAccessDenied
+	case "SearxEngineCaptcha":
+		return st.config.SuspendedTimes.SearxEngineCaptcha
+	case "SearxEngineTooManyRequests":
+		return st.config.SuspendedTimes.SearxEngineTooManyRequests
+	case "cf_SearxEngineCaptcha":
+		return st.config.SuspendedTimes.CfSearxEngineCaptcha
+	case "cf_SearxEngineAccessDenied":
+		return st.config.SuspendedTimes.CfSearxEngineAccessDenied
+	case "recaptcha_SearxEngineCaptcha":
+		return st.config.SuspendedTimes.RecaptchaSearxEngineCaptcha
+	}
+	return 0
 }
 
 func (st *SuspensionTracker) IsSuspended(engineName string) bool {

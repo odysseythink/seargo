@@ -32,13 +32,17 @@ func NewScheduler(cfg *config.Config, c cache.Cache) (*Scheduler, error) {
 		return nil, err
 	}
 
-	engineCfgs := make(map[string]config.EngineConfig, len(cfg.Engines))
+	engineCfgs := make(map[string]config.EngineConfig, len(cfg.Engines)*2)
 	for _, ec := range cfg.Engines {
 		key := ec.Engine
 		if key == "" {
 			key = ec.Name
 		}
 		engineCfgs[key] = ec
+		// Also key by Name if different from Engine (for selectEngines lookup by Name())
+		if ec.Name != "" && ec.Name != key {
+			engineCfgs[ec.Name] = ec
+		}
 	}
 
 	return &Scheduler{
