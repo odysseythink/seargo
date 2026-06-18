@@ -53,7 +53,7 @@ func (d *DuckDuckGo) Search(ctx context.Context, req *models.Request) (*models.R
 		"kl": "en-us",
 	}
 
-	if req.SafeSearch {
+	if req.SafeSearch > 0 {
 		formData["kp"] = "1"
 	}
 

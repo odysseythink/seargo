@@ -19,7 +19,7 @@ type Request struct {
 	Query      string   `form:"q" binding:"required"`
 	Category   Category `form:"category"`
 	Language   string   `form:"language"`
-	SafeSearch bool     `form:"safesearch"`
+	SafeSearch int      `form:"safesearch"`
 	TimeRange  string   `form:"time_range"`
 	Page       int      `form:"page"`
 	PageSize   int      `form:"page_size"`
@@ -28,17 +28,12 @@ type Request struct {
 func (r *Request) CacheKey() string {
 	h := fnv.New64a()
 	h.Write([]byte(r.Query))
-	return fmt.Sprintf("search:%s:%s:%d:%s:%d:%x",
-		r.Category, r.Language, boolToInt(r.SafeSearch),
-		r.TimeRange, r.Page, h.Sum64())
+	return fmt.Sprintf("search:%s:%s:%d:%s:%d:%d:%x",
+		r.Category, r.Language, r.SafeSearch,
+		r.TimeRange, r.Page, r.PageSize, h.Sum64())
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
+
 
 type Result struct {
 	Title        string     `json:"title"`
