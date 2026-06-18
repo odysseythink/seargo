@@ -58,6 +58,50 @@ func TestAllCategories(t *testing.T) {
     assert.True(t, catSet[CategorySocialMedia])
 }
 
+func TestRequestNormalize(t *testing.T) {
+	defaults := NormalizeDefaults{
+		DefaultLang:     "en",
+		DefaultCategory: CategoryGeneral,
+		DefaultPageSize: 10,
+		MaxResults:      50,
+	}
+
+	// Case 1: All zero — should fill defaults
+	r1 := &Request{Query: "test"}
+	r1.Normalize(defaults)
+	assert.Equal(t, "en", r1.Language)
+	assert.Equal(t, CategoryGeneral, r1.Category)
+	assert.Equal(t, 10, r1.PageSize)
+	assert.Equal(t, 1, r1.Page)
+
+	// Case 2: User-provided values should NOT be overwritten
+	r2 := &Request{
+		Query: "test", Language: "zh-CN",
+		Category: CategoryImages, PageSize: 20, Page: 3,
+		SafeSearch: 2,
+	}
+	r2.Normalize(defaults)
+	assert.Equal(t, "zh-CN", r2.Language)
+	assert.Equal(t, CategoryImages, r2.Category)
+	assert.Equal(t, 20, r2.PageSize)
+	assert.Equal(t, 3, r2.Page)
+
+	// Case 3: Page=0 should default to 1
+	r3 := &Request{Query: "test", Page: 0}
+	r3.Normalize(defaults)
+	assert.Equal(t, 1, r3.Page)
+
+	// Case 4: PageSize > MaxResults should be capped
+	r4 := &Request{Query: "test", PageSize: 100}
+	r4.Normalize(defaults)
+	assert.Equal(t, 50, r4.PageSize)
+
+	// Case 5: Negative page is clamped to 1
+	r5 := &Request{Query: "test", Page: -1}
+	r5.Normalize(defaults)
+	assert.Equal(t, 1, r5.Page)
+}
+
 func TestCategoryValues(t *testing.T) {
     // Verify string values
     assert.Equal(t, "general", string(CategoryGeneral))

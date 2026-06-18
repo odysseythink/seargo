@@ -47,6 +47,31 @@ func (r *Request) CacheKey() string {
 		r.TimeRange, r.Page, r.PageSize, h.Sum64())
 }
 
+type NormalizeDefaults struct {
+	DefaultLang     string
+	DefaultCategory Category
+	DefaultPageSize int
+	MaxResults      int
+}
+
+func (r *Request) Normalize(d NormalizeDefaults) {
+	if r.Language == "" {
+		r.Language = d.DefaultLang
+	}
+	if r.Category == "" {
+		r.Category = d.DefaultCategory
+	}
+	if r.PageSize <= 0 {
+		r.PageSize = d.DefaultPageSize
+	}
+	if r.Page <= 0 {
+		r.Page = 1
+	}
+	// Cap PageSize to MaxResults
+	if r.PageSize > d.MaxResults && d.MaxResults > 0 {
+		r.PageSize = d.MaxResults
+	}
+}
 
 
 type Result struct {
