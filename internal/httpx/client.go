@@ -327,11 +327,6 @@ func classifyTransportError(err error) error {
 	return fmt.Errorf("transport error: %w", err)
 }
 
-// Stub — replaced in resilience Part.
-func raiseForHTTPError(resp *Response) error {
-	return nil
-}
-
 // Stub — replaced in observability Part.
 func recordMetrics(network, engine string, statusCode int, duration time.Duration, err error) {}
 
