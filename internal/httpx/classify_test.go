@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -108,4 +109,42 @@ func TestErrorClass(t *testing.T) {
 	assert.Equal(t, "proxy", errorClass(seerrors.ProxyError))
 	assert.Equal(t, "other", errorClass(seerrors.HTTPError))
 	assert.Equal(t, "", errorClass(nil))
+}
+
+func TestClassifyTransportError_Timeout(t *testing.T) {
+	err := classifyTransportError(seerrors.RequestTimeoutError)
+	assert.Contains(t, err.Error(), "REQUEST_TIMEOUT")
+}
+
+func TestClassifyTransportError_ConnectionRefused(t *testing.T) {
+	err := classifyTransportError(seerrors.ConnectionFailedError)
+	assert.Contains(t, err.Error(), "CONNECTION_FAILED")
+}
+
+func TestClassifyTransportError_ProxyError(t *testing.T) {
+	err := classifyTransportError(seerrors.ProxyError)
+	assert.Contains(t, err.Error(), "PROXY_ERROR")
+}
+
+func TestClassifyTransportError_Generic(t *testing.T) {
+	unknownErr := fmt.Errorf("unknown network glitch")
+	err := classifyTransportError(unknownErr)
+	assert.NotNil(t, err)
+}
+
+func TestRedactProxyURL(t *testing.T) {
+	redacted := redactProxyURL("http://user:password@proxy.example.com:8080")
+	assert.NotContains(t, redacted, "user")
+	assert.NotContains(t, redacted, "password")
+	assert.Contains(t, redacted, "proxy.example.com")
+
+	clean := redactProxyURL("http://proxy.example.com:8080")
+	assert.Equal(t, "http://proxy.example.com:8080", clean)
+
+	assert.Equal(t, "", redactProxyURL(""))
+
+	socks := redactProxyURL("socks5://admin:secret@tor:9050")
+	assert.NotContains(t, socks, "admin")
+	assert.NotContains(t, socks, "secret")
+	assert.Contains(t, socks, "tor:9050")
 }

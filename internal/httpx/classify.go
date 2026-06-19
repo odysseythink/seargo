@@ -137,3 +137,73 @@ func errorClass(err error) string {
 	}
 	return "other"
 }
+
+// classifyTransportError maps transport-level errors to typed AppErrors.
+func classifyTransportError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// Already an AppError — pass through
+	if _, ok := err.(*seerrors.AppError); ok {
+		return err
+	}
+
+	msg := err.Error()
+	lower := strings.ToLower(msg)
+
+	// Check error string for timeout indicators
+	if strings.Contains(lower, "timeout") ||
+		strings.Contains(lower, "deadline exceeded") ||
+		strings.Contains(lower, "context deadline exceeded") {
+		return seerrors.RequestTimeoutError.WithMessage(redactMessage(msg))
+	}
+
+	// Check for proxy-related errors
+	if strings.Contains(lower, "proxy") ||
+		strings.Contains(lower, "socks") {
+		return seerrors.ProxyError.WithMessage(redactMessage(msg))
+	}
+
+	// Check for connection failures
+	if strings.Contains(lower, "connection refused") ||
+		strings.Contains(lower, "connection reset") ||
+		strings.Contains(lower, "no route to host") ||
+		strings.Contains(lower, "network is unreachable") ||
+		strings.Contains(lower, "eof") {
+		return seerrors.ConnectionFailedError.WithMessage(redactMessage(msg))
+	}
+
+	// Generic transport error
+	return seerrors.HTTPError.WithMessage(redactMessage(msg))
+}
+
+// redactMessage removes proxy credentials from error messages.
+func redactMessage(msg string) string {
+	return redactProxyURL(msg)
+}
+
+// redactProxyURL removes the userinfo portion from a proxy URL string.
+func redactProxyURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+
+	protoIdx := strings.Index(raw, "://")
+	if protoIdx == -1 {
+		return raw
+	}
+
+	userInfoStart := protoIdx + 3
+	atIdx := strings.Index(raw[userInfoStart:], "@")
+	if atIdx == -1 {
+		return raw
+	}
+
+	pathStart := strings.Index(raw[userInfoStart:], "/")
+	if pathStart != -1 && atIdx > pathStart {
+		return raw
+	}
+
+	return raw[:userInfoStart] + "***:***@" + raw[userInfoStart+atIdx+1:]
+}
