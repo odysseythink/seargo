@@ -71,6 +71,7 @@ type RequestBuilder struct {
 	formData     map[string]string
 	timeout      time.Duration
 	maxRedirects int
+	ctx          context.Context
 }
 
 func (rb *RequestBuilder) SetQueryParam(k, v string) *RequestBuilder {
@@ -112,6 +113,11 @@ func (rb *RequestBuilder) SetMaxRedirects(n int) *RequestBuilder {
 	return rb
 }
 
+func (rb *RequestBuilder) SetContext(ctx context.Context) *RequestBuilder {
+	rb.ctx = ctx
+	return rb
+}
+
 // Get executes a GET request.
 func (rb *RequestBuilder) Get(url string) (*Response, error) {
 	rb.method = "GET"
@@ -133,6 +139,11 @@ type Response struct {
 	Headers    map[string][]string
 	URL        string
 	Duration   time.Duration
+}
+
+// String returns the response body as a string.
+func (r *Response) String() string {
+	return string(r.Body)
 }
 
 // resolveNetwork resolves the network for this Client.
@@ -173,6 +184,9 @@ func chooseUserAgent(network *Network, defaultUA string, _ *UserAgentPool) strin
 func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if rb.ctx != nil {
+		ctx = rb.ctx
 	}
 
 	// 1. Resolve network

@@ -49,8 +49,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create shared HTTP client
-	httpClient := httpx.New(
+	// Create network registry
+	registry, err := httpx.NewRegistry(cfg)
+	if err != nil {
+		logger.Error("Failed to init network registry", "error", err)
+		os.Exit(1)
+	}
+
+	// Create default HTTP client bound to registry
+	httpClient := httpx.NewClient(
+		registry,
+		"", // networkName empty → resolved by engine name
+		"", // engineName empty → per-engine client created inside Scheduler
 		cfg.Outgoing.UserAgent,
 		time.Duration(cfg.Outgoing.RequestTimeout)*time.Second,
 	)
