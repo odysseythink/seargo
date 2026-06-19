@@ -84,6 +84,31 @@ var (
 		},
 		[]string{"type"},
 	)
+
+	OutboundRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_outbound_requests_total",
+			Help: "Total number of outbound HTTP requests by network, engine, and status class",
+		},
+		[]string{"network", "engine", "status_class"},
+	)
+
+	OutboundRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_outbound_request_duration_seconds",
+			Help:    "Outbound HTTP request duration in seconds by network and engine",
+			Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10},
+		},
+		[]string{"network", "engine"},
+	)
+
+	OutboundErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_outbound_errors_total",
+			Help: "Total number of outbound request errors by network, engine, and error class",
+		},
+		[]string{"network", "engine", "error_class"},
+	)
 )
 
 func init() {
@@ -97,4 +122,7 @@ func init() {
 	prometheus.MustRegister(EngineFailuresTotal)
 	prometheus.MustRegister(EngineSuspended)
 	prometheus.MustRegister(ResultStreamTotal)
+	prometheus.MustRegister(OutboundRequestsTotal)
+	prometheus.MustRegister(OutboundRequestDuration)
+	prometheus.MustRegister(OutboundErrorsTotal)
 }

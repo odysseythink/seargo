@@ -190,7 +190,12 @@ func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
 		ctx = rb.ctx
 	}
 
-	// 1. Resolve network
+	// 1a. Check request body size
+	if len(rb.body) > maxRequestSize {
+		return nil, fmt.Errorf("request body exceeds max size of %d bytes", maxRequestSize)
+	}
+
+	// 1b. Resolve network
 	network, err := rb.client.resolveNetwork()
 	if err != nil {
 		return nil, err
@@ -268,7 +273,12 @@ func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
 		return nil, classifyTransportError(err)
 	}
 
-	// 11. Build Response
+	// 11. Check response body size
+	if len(restyResp.Body()) > maxResponseSize {
+		return nil, fmt.Errorf("response body exceeds max size of %d bytes", maxResponseSize)
+	}
+
+	// 12. Build Response
 	resp := &Response{
 		StatusCode: restyResp.StatusCode(),
 		Body:       restyResp.Body(),
@@ -282,7 +292,7 @@ func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
 		return resp, err
 	}
 
-	// 13. Metrics and logging (stub)
+	// 13. Metrics and logging
 	recordMetrics(network.Name, rb.client.engineName, resp.StatusCode, duration, nil)
 	logResponse(rb.client.engineName, network.Name, rb.method, rb.url, resp.StatusCode, nil)
 
@@ -326,10 +336,3 @@ type UserAgentPool struct {
 	Template string   `json:"ua"`
 	Versions []string `json:"versions"`
 }
-
-
-// Stub — replaced in observability Part.
-func recordMetrics(network, engine string, statusCode int, duration time.Duration, err error) {}
-
-// Stub — replaced in observability Part.
-func logResponse(engine, network, method, url string, statusCode int, err error) {}
