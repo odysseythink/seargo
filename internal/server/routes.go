@@ -57,7 +57,7 @@ func (s *Server) handleSearch(c *gin.Context) {
 
 	resp, err := s.scheduler.Search(c.Request.Context(), &req)
 	if err != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -77,7 +77,13 @@ func (s *Server) handleEngines(c *gin.Context) {
 		enabled := true
 		shortcut := ""
 		if ec, ok := s.configEngineConfigs()[name]; ok {
-			enabled = !ec.Disabled
+			if ec.Enabled {
+				enabled = true
+			} else if ec.Disabled {
+				enabled = false
+			} else {
+				enabled = true
+			}
 			shortcut = ec.Shortcut
 		}
 		caps.Shortcut = shortcut

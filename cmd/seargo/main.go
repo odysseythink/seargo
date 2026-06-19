@@ -11,12 +11,10 @@ import (
 
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
-	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/internal/server"
-	"github.com/seargo/seargo/pkg/models"
 
 	// Import engines to trigger init() registration
 	_ "github.com/seargo/seargo/engines/bing"
@@ -51,49 +49,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Init scheduler
-	sched, err := search.NewScheduler(cfg, c)
-	if err != nil {
-		logger.Error("Failed to init scheduler", "error", err)
-		os.Exit(1)
-	}
-
 	// Create shared HTTP client
 	httpClient := httpx.New(
 		cfg.Outgoing.UserAgent,
 		time.Duration(cfg.Outgoing.RequestTimeout)*time.Second,
 	)
 
-	// Register enabled engines
-	for _, ec := range cfg.Engines {
-		if ec.Disabled {
-			continue
-		}
-		lookupName := ec.Engine
-		if lookupName == "" {
-			lookupName = ec.Name
-		}
-		if lookupName == "" {
-			continue
-		}
-		eng, ok := engine.Get(lookupName)
-		if !ok {
-			logger.Warn("Engine not found", "engine", lookupName)
-			continue
-		}
-		initCfg := engine.EngineInitConfig{
-			Name:     ec.Name,
-			Shortcut: ec.Shortcut,
-			Categories: toModelCategories(ec.Categories),
-			Timeout:  ec.Timeout,
-			Extra:    ec.Extra,
-		}
-		if err := eng.Init(httpClient, initCfg); err != nil {
-			logger.Error("Failed to init engine", "engine", lookupName, "error", err)
-			continue
-		}
-		sched.RegisterEngine(lookupName, eng)
-		logger.Info("Engine registered", "engine", lookupName)
+	// Init scheduler (handles engine registration internally)
+	sched, err := search.NewScheduler(cfg, c, httpClient)
+	if err != nil {
+		logger.Error("Failed to init scheduler", "error", err)
+		os.Exit(1)
 	}
 
 	// Create server
@@ -121,12 +87,4 @@ func main() {
 	}
 
 	logger.Info("Server exited")
-}
-
-func toModelCategories(cats []string) []models.Category {
-	result := make([]models.Category, len(cats))
-	for i, c := range cats {
-		result[i] = models.Category(c)
-	}
-	return result
 }

@@ -32,7 +32,7 @@ func TestHealthEndpoint(t *testing.T) {
 		Search: config.SearchConfig{DefaultLang: "zh-CN"},
 	}
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c)
+	sched, _ := search.NewScheduler(cfg, c, nil)
 
 	srv := New(cfg, sched)
 	w := httptest.NewRecorder()
@@ -59,7 +59,7 @@ func TestCategoriesEndpoint(t *testing.T) {
 		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c)
+	sched, _ := search.NewScheduler(cfg, c, nil)
 
 	srv := New(cfg, sched)
 	w := httptest.NewRecorder()
@@ -106,7 +106,7 @@ func TestConfigEndpoint(t *testing.T) {
 		},
 	}
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c)
+	sched, _ := search.NewScheduler(cfg, c, nil)
 
 	srv := New(cfg, sched)
 	w := httptest.NewRecorder()
@@ -152,12 +152,10 @@ func TestEnginesEndpoint(t *testing.T) {
 		},
 		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
-	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c)
-
 	mockEngine := &mockEngineForServer{name: "google", categories: []models.Category{models.CategoryGeneral}}
-	sched.RegisterEngine("google", mockEngine)
 	engine.Register("google", mockEngine)
+	c, _ := cache.NewMultiLevel("")
+	sched, _ := search.NewScheduler(cfg, c, nil)
 
 	srv := New(cfg, sched)
 	w := httptest.NewRecorder()

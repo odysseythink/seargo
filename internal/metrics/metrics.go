@@ -60,6 +60,30 @@ var (
 		},
 		[]string{"level"},
 	)
+
+	EngineFailuresTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_engine_failures_total",
+			Help: "Total number of engine failures by reason",
+		},
+		[]string{"engine", "reason"},
+	)
+
+	EngineSuspended = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "seargo_engine_suspended",
+			Help: "Whether an engine is currently suspended (1=suspended, 0=active)",
+		},
+		[]string{"engine"},
+	)
+
+	ResultStreamTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_result_stream_total",
+			Help: "Total number of results by stream type",
+		},
+		[]string{"type"},
+	)
 )
 
 func init() {
@@ -70,4 +94,7 @@ func init() {
 	prometheus.MustRegister(SearchResultsTotal)
 	prometheus.MustRegister(CacheHits)
 	prometheus.MustRegister(CacheMisses)
+	prometheus.MustRegister(EngineFailuresTotal)
+	prometheus.MustRegister(EngineSuspended)
+	prometheus.MustRegister(ResultStreamTotal)
 }
