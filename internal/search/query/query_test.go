@@ -187,3 +187,99 @@ func TestAutocompleteTriggerParser(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, PartAutocompleteTrigger, part.Type)
 }
+
+func TestRawTextQuery_BangEngine(t *testing.T) {
+	shortcuts := map[string]string{"gh": "github"}
+	names := []string{"github", "wikipedia"}
+	cats := []models.Category{models.CategoryGeneral, models.CategoryImages}
+
+	rtq := NewRawTextQuery("!gh golang")
+	pq, err := rtq.Parse(shortcuts, names, cats, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"github"}, pq.EngineRefs)
+	assert.Equal(t, []string{"golang"}, pq.Terms)
+	assert.True(t, pq.Specific)
+}
+
+func TestRawTextQuery_ExternalBang(t *testing.T) {
+	rtq := NewRawTextQuery("!!g golang")
+	pq, err := rtq.Parse(nil, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "g", pq.ExternalBang)
+	assert.Equal(t, []string{"golang"}, pq.Terms)
+}
+
+func TestRawTextQuery_Language(t *testing.T) {
+	rtq := NewRawTextQuery(":zh-CN golang")
+	pq, err := rtq.Parse(nil, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, "zh-CN", pq.Lang)
+	assert.Equal(t, []string{"golang"}, pq.Terms)
+}
+
+func TestRawTextQuery_MultipleBangs(t *testing.T) {
+	shortcuts := map[string]string{"gh": "github", "so": "stackoverflow"}
+	names := []string{"github", "stackoverflow"}
+	cats := []models.Category{}
+
+	rtq := NewRawTextQuery("!gh !so golang")
+	pq, err := rtq.Parse(shortcuts, names, cats, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"github", "stackoverflow"}, pq.EngineRefs)
+	assert.Equal(t, []string{"golang"}, pq.Terms)
+}
+
+func TestRawTextQuery_AutocompleteTrigger(t *testing.T) {
+	rtq := NewRawTextQuery("?golang")
+	pq, err := rtq.Parse(nil, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.True(t, pq.AutocompleteTrigger)
+	assert.Equal(t, []string{"golang"}, pq.Terms)
+}
+
+func TestRawTextQuery_UnknownBangPreserved(t *testing.T) {
+	shortcuts := map[string]string{}
+	names := []string{"google"}
+	cats := []models.Category{}
+
+	rtq := NewRawTextQuery("!unknown term")
+	pq, err := rtq.Parse(shortcuts, names, cats, nil)
+	assert.NoError(t, err)
+	assert.Empty(t, pq.EngineRefs)
+	assert.Equal(t, []string{"!unknown", "term"}, pq.Terms)
+}
+
+func TestRawTextQuery_Timeout(t *testing.T) {
+	rtq := NewRawTextQuery("<3 golang")
+	pq, err := rtq.Parse(nil, nil, nil, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, 3.0, pq.Timeout)
+	assert.Equal(t, []string{"golang"}, pq.Terms)
+}
+
+func TestRawTextQuery_BangCategory(t *testing.T) {
+	shortcuts := map[string]string{}
+	names := []string{}
+	cats := []models.Category{models.CategoryGeneral, models.CategoryImages, models.CategoryNews}
+
+	rtq := NewRawTextQuery("!images cat")
+	pq, err := rtq.Parse(shortcuts, names, cats, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []models.Category{models.CategoryImages}, pq.Categories)
+	assert.Equal(t, []string{"cat"}, pq.Terms)
+}
+
+func TestRawTextQuery_Complex(t *testing.T) {
+	shortcuts := map[string]string{"gh": "github"}
+	names := []string{"github"}
+	cats := []models.Category{models.CategoryGeneral, models.CategoryImages}
+
+	rtq := NewRawTextQuery("!gh :en <5 golang tutorial")
+	pq, err := rtq.Parse(shortcuts, names, cats, nil)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"github"}, pq.EngineRefs)
+	assert.Equal(t, "en", pq.Lang)
+	assert.Equal(t, 5.0, pq.Timeout)
+	assert.Equal(t, []string{"golang", "tutorial"}, pq.Terms)
+}
+
