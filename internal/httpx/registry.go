@@ -1,8 +1,13 @@
 package httpx
 
 import (
+	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"sort"
 	"sync"
 	"time"
@@ -160,7 +165,74 @@ func (n *Network) Close() error {
 	return nil
 }
 
-// newRestyClient is a stub — full implementation in Task 2.
+// newRestyClient constructs a resty.Client with a fully-configured http.Transport
+// based on the Network settings.
 func (n *Network) newRestyClient(verify bool, maxRedirects int, localAddr, proxyDigest string) (*resty.Client, error) {
-	return resty.New(), nil
+	transport := &http.Transport{
+		MaxIdleConns:        n.MaxConnections,
+		MaxIdleConnsPerHost: n.MaxKeepaliveConnections,
+		IdleConnTimeout:     n.KeepaliveExpiry,
+		ForceAttemptHTTP2:   n.EnableHTTP2,
+	}
+
+	if !verify {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	// Proxy configuration
+	if n.Proxies.Len() > 0 && proxyDigest != "" {
+		selected := n.Proxies.Peek()
+		pu, ok := selected[allPattern]
+		if !ok {
+			for _, v := range selected {
+				pu = v
+				break
+			}
+		}
+
+		switch pu.Scheme {
+		case "http", "https":
+			proxyURLStr := pu.String()
+			transport.Proxy = func(req *http.Request) (*url.URL, error) {
+				u, err := url.Parse(proxyURLStr)
+				if err != nil {
+					return nil, err
+				}
+				return u, nil
+			}
+		case "socks4", "socks5", "socks5h":
+			dialCtx, err := newDialContext(pu, localAddr)
+			if err != nil {
+				return nil, fmt.Errorf("SOCKS5 dialer: %w", err)
+			}
+			transport.DialContext = dialCtx
+			transport.Proxy = nil
+		}
+	}
+
+	// Local address binding
+	if localAddr != "" && transport.DialContext == nil {
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			tcpAddr, err := net.ResolveTCPAddr(network, net.JoinHostPort(localAddr, "0"))
+			if err != nil {
+				return nil, err
+			}
+			dialer := net.Dialer{LocalAddr: tcpAddr, Timeout: 30 * time.Second}
+			return dialer.DialContext(ctx, network, addr)
+		}
+	}
+
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   0,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirects {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		},
+	}
+
+	rc := resty.NewWithClient(httpClient)
+	return rc, nil
 }
