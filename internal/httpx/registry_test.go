@@ -1,0 +1,117 @@
+package httpx
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestNetwork_GetClient_SameKeyReturnsSameClient(t *testing.T) {
+	n := &Network{
+		Name:                     "test",
+		MaxConnections:           10,
+		MaxKeepaliveConnections:  5,
+		KeepaliveExpiry:          5 * time.Second,
+		EnableHTTP2:              false,
+		MaxRedirects:             5,
+		clients:                  make(map[ClientKey]*restyClientRef),
+	}
+
+	c1, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	c2, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	assert.Same(t, c1, c2)
+}
+
+func TestNetwork_GetClient_DifferentVerifyCreatesNew(t *testing.T) {
+	n := &Network{
+		Name:                     "test",
+		MaxConnections:           10,
+		MaxKeepaliveConnections:  5,
+		KeepaliveExpiry:          5 * time.Second,
+		MaxRedirects:             5,
+		clients:                  make(map[ClientKey]*restyClientRef),
+	}
+
+	c1, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	c2, err := n.GetClient(false, 5, "", "")
+	assert.NoError(t, err)
+	assert.NotSame(t, c1, c2)
+}
+
+func TestNetwork_GetClient_DifferentLocalAddrCreatesNew(t *testing.T) {
+	n := &Network{
+		Name:                     "test",
+		MaxConnections:           10,
+		MaxKeepaliveConnections:  5,
+		KeepaliveExpiry:          5 * time.Second,
+		MaxRedirects:             5,
+		LocalAddresses:           []string{"10.0.0.1", "10.0.0.2"},
+		clients:                  make(map[ClientKey]*restyClientRef),
+	}
+
+	c1, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	c2, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	assert.NotSame(t, c1, c2, "different local address should produce different client")
+}
+
+func TestNetwork_GetClient_ProxyRoundRobin(t *testing.T) {
+	ps, _ := parseProxies(map[string]interface{}{
+		"all": []interface{}{"http://a:8080", "http://b:8080"},
+	})
+	n := &Network{
+		Name:                     "test",
+		MaxConnections:           10,
+		MaxKeepaliveConnections:  5,
+		KeepaliveExpiry:          5 * time.Second,
+		MaxRedirects:             5,
+		Proxies:                  ps,
+		clients:                  make(map[ClientKey]*restyClientRef),
+	}
+
+	c1, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	c2, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+	assert.NotSame(t, c1, c2, "proxy round-robin should produce different client")
+}
+
+func TestNetwork_Close(t *testing.T) {
+	n := &Network{
+		Name:                     "test",
+		MaxConnections:           10,
+		MaxKeepaliveConnections:  5,
+		KeepaliveExpiry:          5 * time.Second,
+		MaxRedirects:             5,
+		clients:                  make(map[ClientKey]*restyClientRef),
+	}
+
+	_, err := n.GetClient(true, 5, "", "")
+	assert.NoError(t, err)
+
+	n.Close()
+
+	_, err = n.GetClient(true, 5, "", "")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "closed")
+}
+
+func TestNetwork_ClientKey_ProxyDigestStable(t *testing.T) {
+	ps, _ := parseProxies("http://a:8080")
+	n := &Network{
+		Name:    "test",
+		Proxies: ps,
+	}
+
+	digest1 := n.proxyDigest()
+	digest2 := n.proxyDigest()
+	assert.Equal(t, digest1, digest2, "same proxy set gives same digest")
+
+	n2 := &Network{Name: "empty"}
+	assert.Equal(t, "", n2.proxyDigest())
+}

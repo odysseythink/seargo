@@ -202,6 +202,26 @@ func parseProxyList(value interface{}) ([]ProxyURL, error) {
 	}
 }
 
+// Peek returns the currently-selected proxies without advancing indices.
+func (ps *ProxySet) Peek() map[string]ProxyURL {
+	if len(ps.byPattern) == 0 {
+		return nil
+	}
+
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	result := make(map[string]ProxyURL, len(ps.byPattern))
+	for pattern, list := range ps.byPattern {
+		if len(list) == 0 {
+			continue
+		}
+		idx := ps.indices[pattern]
+		result[pattern] = list[idx%len(list)]
+	}
+	return result
+}
+
 func (ps *ProxySet) Len() int {
 	total := 0
 	for _, list := range ps.byPattern {
