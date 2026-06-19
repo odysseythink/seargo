@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -279,4 +280,82 @@ func TestClient_SetProxy_DeprecatedNoop(t *testing.T) {
 	reg, _ := NewRegistry(cfg)
 	c := NewClient(reg, "", "test", "", 0)
 	c.SetProxy("http://proxy:8080")
+}
+
+func TestDo_ContextCancelled(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "test", "", 0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // immediately cancel
+
+	_, err := c.R().Do(ctx)
+	assert.Error(t, err)
+}
+
+func TestDo_GET_Integration(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "test", "", 5*time.Second)
+
+	rb := c.R().
+		SetQueryParam("q", "test").
+		SetHeader("Accept", "text/html").
+		SetTimeout(2 * time.Second)
+
+	assert.NotNil(t, rb)
+	assert.Equal(t, "test", rb.queryParams["q"])
+	assert.Equal(t, "text/html", rb.headers["Accept"])
+	assert.Equal(t, 2*time.Second, rb.timeout)
+
+	// The actual HTTP request will fail (no real server), but the builder
+	// and resolveNetwork path are verified.
+	_, err := rb.Get("http://127.0.0.1:1/nonexistent")
+	assert.Error(t, err) // connection refused or timeout
+}
+
+func TestDo_POST_Builder(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "test", "", 0)
+
+	rb := c.R().SetBody([]byte(`{"key":"value"}`))
+	assert.Equal(t, []byte(`{"key":"value"}`), rb.body)
+
+	_, err := rb.Post("http://127.0.0.1:1/nonexistent")
+	assert.Error(t, err) // connection refused
 }
