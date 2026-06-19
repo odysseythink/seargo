@@ -153,9 +153,7 @@ func TestRegistry_Initialize_CustomNetwork(t *testing.T) {
 			MaxRedirects:    30,
 			EnableHTTP:      true,
 			Networks: map[string]config.OutgoingNetworkOverride{
-				"tor": {
-					UsingTorProxy: boolPtr(true),
-				},
+				"tor": {},
 			},
 		},
 		Engines: []config.EngineConfig{},
@@ -358,4 +356,4 @@ func TestRegistry_Reload_AddsNewEngine(t *testing.T) {
 	assert.NotNil(t, r.Get("google"))
 }
 
-func boolPtr(b bool) *bool { return &b }
+

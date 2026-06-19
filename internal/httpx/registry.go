@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -576,13 +577,54 @@ func newNetwork(name string, p networkParams) *Network {
 }
 
 // checkTorProxy verifies that this network's outbound IP is a Tor exit node.
-// Stub implementation — real check added in observability Part.
+// Uses https://check.torproject.org/api/ip endpoint.
 func (n *Network) checkTorProxy() error {
 	if !n.UsingTorProxy {
 		return nil
 	}
+
 	if n.Proxies.Len() == 0 {
-		return nil
+		return fmt.Errorf("using_tor_proxy is true but no proxy configured")
 	}
+
+	verify := n.Verify
+	maxR := n.MaxRedirects
+	if maxR <= 0 {
+		maxR = 5
+	}
+	localAddr := n.nextLocalAddress()
+	proxyDigest := n.nextProxyDigest()
+
+	restyClient, err := n.GetClient(verify, maxR, localAddr, proxyDigest)
+	if err != nil {
+		return fmt.Errorf("create Tor check client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	resp, err := restyClient.R().
+		SetContext(ctx).
+		Get("https://check.torproject.org/api/ip")
+	if err != nil {
+		return fmt.Errorf("Tor check request failed: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("Tor check returned status %d", resp.StatusCode())
+	}
+
+	var result struct {
+		IsTor bool   `json:"IsTor"`
+		IP    string `json:"IP"`
+	}
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return fmt.Errorf("Tor check response parse error: %w", err)
+	}
+
+	if !result.IsTor {
+		return fmt.Errorf("Tor check failed: IP %s is not a Tor exit node", result.IP)
+	}
+
 	return nil
 }

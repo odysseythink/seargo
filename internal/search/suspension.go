@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/errors"
 )
 
 type SuspensionTracker struct {
@@ -93,6 +94,31 @@ func classifyError(err error) string {
 	if err == nil {
 		return ""
 	}
+
+	// Check for typed EngineErrors first
+	if ee, ok := err.(*errors.EngineError); ok {
+		switch ee.SuspendedTimeCategory {
+		case "captcha":
+			msg := strings.ToLower(ee.Error())
+			if strings.Contains(msg, "cloudflare") {
+				return "cf_SearxEngineCaptcha"
+			}
+			if strings.Contains(msg, "recaptcha") {
+				return "recaptcha_SearxEngineCaptcha"
+			}
+			return "SearxEngineCaptcha"
+		case "access_denied":
+			msg := strings.ToLower(ee.Error())
+			if strings.Contains(msg, "cloudflare") || strings.Contains(msg, "1020") {
+				return "cf_SearxEngineAccessDenied"
+			}
+			return "SearxEngineAccessDenied"
+		case "too_many_requests":
+			return "SearxEngineTooManyRequests"
+		}
+	}
+
+	// Fallback to string-based classification
 	msg := strings.ToLower(err.Error())
 
 	if strings.Contains(msg, "403") || strings.Contains(msg, "forbidden") ||
