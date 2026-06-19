@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,7 +111,7 @@ func TestProxySet_Next_RoundRobin(t *testing.T) {
 }
 
 func TestProxySet_Next_Empty(t *testing.T) {
-	ps := &ProxySet{byPattern: make(map[string][]ProxyURL)}
+	ps := &ProxySet{byPattern: make(map[string][]ProxyURL), mu: &sync.Mutex{}}
 	assert.Empty(t, ps.Next())
 }
 

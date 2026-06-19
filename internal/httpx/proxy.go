@@ -95,7 +95,7 @@ const allPattern = "all://"
 type ProxySet struct {
 	byPattern map[string][]ProxyURL
 	indices   map[string]int
-	mu        sync.Mutex
+	mu        *sync.Mutex
 }
 
 func (ps *ProxySet) Next() map[string]ProxyURL {
@@ -144,6 +144,7 @@ func parseProxies(input interface{}) (ProxySet, error) {
 	ps := ProxySet{
 		byPattern: make(map[string][]ProxyURL),
 		indices:   make(map[string]int),
+		mu:        &sync.Mutex{},
 	}
 
 	if input == nil {
