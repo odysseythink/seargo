@@ -1,6 +1,7 @@
 package models
 
 import (
+    "encoding/json"
     "testing"
 
     "github.com/stretchr/testify/assert"
@@ -210,4 +211,61 @@ func TestCategoryValidValues(t *testing.T) {
             assert.Equal(t, tt.valid, validSet[tt.category])
         })
     }
+}
+
+func TestResultNewFieldsJSON(t *testing.T) {
+	r := Result{
+		Title:   "Test",
+		URL:     "https://example.com",
+		Engine:  "google",
+		Engines: []string{"google", "bing"},
+		Score:   3.5,
+		Domain:  "example.com",
+	}
+
+	data, err := json.Marshal(r)
+	assert.NoError(t, err)
+
+	var decoded Result
+	err = json.Unmarshal(data, &decoded)
+	assert.NoError(t, err)
+	assert.Equal(t, "Test", decoded.Title)
+	assert.Equal(t, []string{"google", "bing"}, decoded.Engines)
+	assert.Equal(t, "example.com", decoded.Domain)
+}
+
+func TestResultEnginesOmitEmpty(t *testing.T) {
+	r := Result{Title: "T", URL: "https://x.com"}
+	data, err := json.Marshal(r)
+	assert.NoError(t, err)
+	assert.NotContains(t, string(data), `"engines"`)
+}
+
+func TestResponseNewFieldsJSON(t *testing.T) {
+	resp := Response{
+		Query:       "test",
+		Results:     []Result{},
+		Answers:     []Answer{{Answer: "42"}},
+		Infoboxes:   []Infobox{{Title: "info", Content: "body"}},
+		RedirectURL: "https://google.com/search?q=test",
+		EngineData:  map[string]any{"key": "val"},
+	}
+	data, err := json.Marshal(resp)
+	assert.NoError(t, err)
+
+	var decoded Response
+	err = json.Unmarshal(data, &decoded)
+	assert.NoError(t, err)
+	assert.Len(t, decoded.Answers, 1)
+	assert.Equal(t, "42", decoded.Answers[0].Answer)
+	assert.Len(t, decoded.Infoboxes, 1)
+	assert.Equal(t, "https://google.com/search?q=test", decoded.RedirectURL)
+}
+
+func TestResponseNewFieldsOmitEmpty(t *testing.T) {
+	resp := Response{Query: "test", Results: []Result{}}
+	data, err := json.Marshal(resp)
+	assert.NoError(t, err)
+	assert.NotContains(t, string(data), `"answers"`)
+	assert.NotContains(t, string(data), `"redirect_url"`)
 }

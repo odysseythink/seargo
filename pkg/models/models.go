@@ -74,26 +74,54 @@ func (r *Request) Normalize(d NormalizeDefaults) {
 }
 
 
+type Answer struct {
+	Answer  string `json:"answer"`
+	URL     string `json:"url,omitempty"`
+	Content string `json:"content"`
+	Engine  string `json:"engine,omitempty"`
+}
+
+type Infobox struct {
+	Title       string   `json:"title"`
+	URL         string   `json:"url,omitempty"`
+	Content     string   `json:"content,omitempty"`
+	Engine      string   `json:"engine,omitempty"`
+	ImgSrc      string   `json:"img_src,omitempty"`
+	URLs        []string `json:"urls,omitempty"`
+	Attributes  []string `json:"attributes,omitempty"`
+}
+
 type Result struct {
-	Title        string     `json:"title"`
-	URL          string     `json:"url"`
-	Content      string     `json:"content"`
-	Engine       string     `json:"engine"`
-	Category     Category   `json:"category"`
-	Score        float64    `json:"score"`
-	ThumbnailURL string     `json:"thumbnail_url,omitempty"`
-	PublishedAt  *time.Time `json:"published_at,omitempty"`
+	Title        string         `json:"title"`
+	URL          string         `json:"url"`
+	Content      string         `json:"content"`
+	Engine       string         `json:"engine"`
+	Engines      []string       `json:"engines,omitempty"`
+	Category     Category       `json:"category"`
+	Score        float64        `json:"score"`
+	Positions    []int          `json:"-"`
+	Template     string         `json:"template,omitempty"`
+	ThumbnailURL string         `json:"thumbnail_url,omitempty"`
+	PublishedAt  *time.Time     `json:"published_at,omitempty"`
+	Domain       string         `json:"domain,omitempty"`
+	Favicon      string         `json:"favicon,omitempty"`
+	EngineData   map[string]any `json:"engine_data,omitempty"`
 }
 
 type Response struct {
-	Query          string   `json:"query"`
-	Category       Category `json:"category"`
-	Results        []Result `json:"results"`
-	Suggestions    []string `json:"suggestions"`
-	Total          int      `json:"total"`
-	Page           int      `json:"page"`
-	PageSize       int      `json:"page_size"`
-	EnginesUsed    []string `json:"engines_used"`
-	EnginesFailed  []string `json:"engines_failed"`
-	ResponseTimeMs int64    `json:"response_time_ms"`
+	Query          string         `json:"query"`
+	Category       Category       `json:"category"`
+	Results        []Result       `json:"results"`
+	Suggestions    []string       `json:"suggestions"`
+	Answers        []Answer       `json:"answers,omitempty"`
+	Corrections    []string       `json:"corrections,omitempty"`
+	Infoboxes      []Infobox      `json:"infoboxes,omitempty"`
+	EngineData     map[string]any `json:"engine_data,omitempty"`
+	Total          int            `json:"total"`
+	Page           int            `json:"page"`
+	PageSize       int            `json:"page_size"`
+	EnginesUsed    []string       `json:"engines_used"`
+	EnginesFailed  []string       `json:"engines_failed"`
+	ResponseTimeMs int64          `json:"response_time_ms"`
+	RedirectURL    string         `json:"redirect_url,omitempty"`
 }
