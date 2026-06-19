@@ -243,4 +243,119 @@ func TestRegistry_Close(t *testing.T) {
 	assert.NoError(t, r.Close())
 }
 
+func TestRegistry_Reload_ReplacesNetworks(t *testing.T) {
+	cfg1 := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	r, err := NewRegistry(cfg1)
+	require.NoError(t, err)
+	origDefault := r.Get("default")
+	assert.NotNil(t, origDefault)
+
+	cfg2 := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  10.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	err = r.Reload(cfg2)
+	require.NoError(t, err)
+
+	newDefault := r.Get("default")
+	assert.NotNil(t, newDefault)
+	assert.NotSame(t, origDefault, newDefault)
+	assert.Equal(t, 10*time.Second, newDefault.Timeout)
+}
+
+func TestRegistry_Reload_FailureKeepsOld(t *testing.T) {
+	cfg1 := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	r, err := NewRegistry(cfg1)
+	require.NoError(t, err)
+	origDefault := r.Get("default")
+
+	cfg2 := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  10.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+			Networks: map[string]config.OutgoingNetworkOverride{
+				"default": {},
+			},
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	err = r.Reload(cfg2)
+	assert.Error(t, err)
+
+	stillDefault := r.Get("default")
+	assert.NotNil(t, stillDefault)
+	assert.Same(t, origDefault, stillDefault)
+}
+
+func TestRegistry_Reload_AddsNewEngine(t *testing.T) {
+	cfg1 := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	r, err := NewRegistry(cfg1)
+	require.NoError(t, err)
+	assert.Nil(t, r.Get("google"))
+
+	cfg2 := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", Timeout: 5.0},
+		},
+	}
+
+	err = r.Reload(cfg2)
+	require.NoError(t, err)
+	assert.NotNil(t, r.Get("google"))
+}
+
 func boolPtr(b bool) *bool { return &b }

@@ -328,6 +328,83 @@ func (r *Registry) Names() []string {
 	return names
 }
 
+// Reload rebuilds the Registry with a new config. If the new config is
+// invalid, the old Registry is kept unchanged and an error is returned.
+// On success, old Network clients are closed asynchronously.
+func (r *Registry) Reload(newCfg *config.Config) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Build new registry
+	newRegistry := &Registry{
+		networks: make(map[string]*Network),
+		cfg:      newCfg,
+	}
+
+	defaultParams := buildParams(newCfg.Outgoing, config.OutgoingNetworkOverride{})
+	newRegistry.networks["default"] = newNetwork("default", defaultParams)
+
+	ipv4Params := defaultParams
+	ipv4Params.localAddrs = []string{"0.0.0.0"}
+	newRegistry.networks["ipv4"] = newNetwork("ipv4", ipv4Params)
+
+	ipv6Params := defaultParams
+	ipv6Params.localAddrs = []string{"::"}
+	newRegistry.networks["ipv6"] = newNetwork("ipv6", ipv6Params)
+
+	for name, override := range newCfg.Outgoing.Networks {
+		if _, exists := newRegistry.networks[name]; exists {
+			return fmt.Errorf("network name %q conflicts with built-in network", name)
+		}
+		params := buildParams(newCfg.Outgoing, override)
+		newRegistry.networks[name] = newNetwork(name, params)
+	}
+
+	for _, ec := range newCfg.Engines {
+		engineName := ec.Engine
+		if engineName == "" {
+			engineName = ec.Name
+		}
+		if engineName == "" {
+			continue
+		}
+		params := defaultParams
+		if ec.Timeout > 0 {
+			params.timeout = time.Duration(ec.Timeout * float64(time.Second))
+		}
+		newRegistry.networks[engineName] = newNetwork(engineName, params)
+	}
+
+	if _, exists := newRegistry.networks["image_proxy"]; !exists {
+		ipParams := defaultParams
+		ipParams.enableHTTP2 = false
+		newRegistry.networks["image_proxy"] = newNetwork("image_proxy", ipParams)
+	}
+
+	// Validate Tor
+	for _, n := range newRegistry.networks {
+		if n.UsingTorProxy {
+			if err := n.checkTorProxy(); err != nil {
+				return fmt.Errorf("network %q: %w", n.Name, err)
+			}
+		}
+	}
+
+	// Swap networks
+	oldNetworks := r.networks
+	r.networks = newRegistry.networks
+	r.cfg = newCfg
+
+	// Asynchronously close old network clients
+	go func() {
+		for _, n := range oldNetworks {
+			n.Close()
+		}
+	}()
+
+	return nil
+}
+
 // Close closes all networks and their clients.
 func (r *Registry) Close() error {
 	r.mu.Lock()
