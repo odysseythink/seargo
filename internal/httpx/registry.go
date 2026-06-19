@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/seargo/seargo/internal/config"
 )
 
 // ClientKey uniquely identifies a resty client in the Network cache.
@@ -235,4 +237,277 @@ func (n *Network) newRestyClient(verify bool, maxRedirects int, localAddr, proxy
 
 	rc := resty.NewWithClient(httpClient)
 	return rc, nil
+}
+
+// Registry holds all named outbound Networks.
+type Registry struct {
+	mu       sync.RWMutex
+	networks map[string]*Network
+	cfg      *config.Config
+}
+
+// NewRegistry creates a Registry and initializes all networks from config.
+func NewRegistry(cfg *config.Config) (*Registry, error) {
+	r := &Registry{
+		networks: make(map[string]*Network),
+		cfg:      cfg,
+	}
+
+	// 1. Default network
+	defaultParams := buildParams(cfg.Outgoing, config.OutgoingNetworkOverride{})
+	r.networks["default"] = newNetwork("default", defaultParams)
+
+	// 2. Built-in ipv4 / ipv6
+	ipv4Params := defaultParams
+	ipv4Params.localAddrs = []string{"0.0.0.0"}
+	r.networks["ipv4"] = newNetwork("ipv4", ipv4Params)
+
+	ipv6Params := defaultParams
+	ipv6Params.localAddrs = []string{"::"}
+	r.networks["ipv6"] = newNetwork("ipv6", ipv6Params)
+
+	// 3. Custom outgoing.networks
+	for name, override := range cfg.Outgoing.Networks {
+		if _, exists := r.networks[name]; exists {
+			return nil, fmt.Errorf("network name %q conflicts with built-in network", name)
+		}
+		params := buildParams(cfg.Outgoing, override)
+		r.networks[name] = newNetwork(name, params)
+	}
+
+	// 4. Engine networks
+	for _, ec := range cfg.Engines {
+		engineName := ec.Engine
+		if engineName == "" {
+			engineName = ec.Name
+		}
+		if engineName == "" {
+			continue
+		}
+		params := defaultParams
+		if ec.Timeout > 0 {
+			params.timeout = time.Duration(ec.Timeout * float64(time.Second))
+		}
+		r.networks[engineName] = newNetwork(engineName, params)
+	}
+
+	// 5. image_proxy network
+	if _, exists := r.networks["image_proxy"]; !exists {
+		ipParams := defaultParams
+		ipParams.enableHTTP2 = false
+		r.networks["image_proxy"] = newNetwork("image_proxy", ipParams)
+	}
+
+	// 6. Tor validation
+	for _, n := range r.networks {
+		if n.UsingTorProxy {
+			if err := n.checkTorProxy(); err != nil {
+				return nil, fmt.Errorf("network %q is configured for Tor but check failed: %w", n.Name, err)
+			}
+		}
+	}
+
+	return r, nil
+}
+
+// Get returns the named Network or nil if not found.
+func (r *Registry) Get(name string) *Network {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.networks[name]
+}
+
+// Names returns all registered network names.
+func (r *Registry) Names() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	names := make([]string, 0, len(r.networks))
+	for name := range r.networks {
+		names = append(names, name)
+	}
+	return names
+}
+
+// Close closes all networks and their clients.
+func (r *Registry) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var errs []string
+	for _, n := range r.networks {
+		if err := n.Close(); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("close errors: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// networkParams is an internal, fully-resolved version of Network parameters
+// used by buildParams to accumulate defaults and overrides.
+type networkParams struct {
+	enableHTTP              bool
+	verify                  bool
+	enableHTTP2             bool
+	maxConnections          int
+	maxKeepaliveConnections int
+	keepaliveExpiry         time.Duration
+	localAddrs              []string
+	proxies                 ProxySet
+	usingTorProxy           bool
+	maxRedirects            int
+	retries                 int
+	retryOnHTTPError        interface{}
+	userAgent               string
+	userAgentSuffix         string
+	timeout                 time.Duration
+}
+
+func buildParams(outgoing config.OutgoingConfig, override config.OutgoingNetworkOverride) networkParams {
+	p := networkParams{
+		enableHTTP:              true,
+		verify:                  true,
+		enableHTTP2:             outgoing.EnableHTTP2,
+		maxConnections:          outgoing.PoolConnections,
+		maxKeepaliveConnections: outgoing.PoolMaxsize,
+		keepaliveExpiry:         time.Duration(outgoing.KeepaliveExpiry * float64(time.Second)),
+		maxRedirects:            outgoing.MaxRedirects,
+		retries:                 outgoing.Retries,
+		retryOnHTTPError:        outgoing.RetryOnHTTPError,
+		userAgent:               outgoing.UserAgent,
+		userAgentSuffix:         outgoing.UserAgentSuffix,
+		usingTorProxy:           outgoing.UsingTorProxy,
+	}
+
+	if outgoing.EnableHTTP {
+		p.enableHTTP = true
+	}
+
+	if outgoing.MaxRedirects > 0 {
+		p.maxRedirects = outgoing.MaxRedirects
+	}
+	if p.maxRedirects <= 0 {
+		p.maxRedirects = 30
+	}
+
+	if outgoing.RequestTimeout > 0 {
+		p.timeout = time.Duration(outgoing.RequestTimeout * float64(time.Second))
+	}
+	if p.timeout <= 0 {
+		p.timeout = 3 * time.Second
+	}
+
+	// Apply overrides
+	if override.EnableHTTP != nil {
+		p.enableHTTP = *override.EnableHTTP
+	}
+	if override.Verify != nil {
+		p.verify = *override.Verify
+	}
+	if override.EnableHTTP2 != nil {
+		p.enableHTTP2 = *override.EnableHTTP2
+	}
+	if override.MaxConnections != nil {
+		p.maxConnections = *override.MaxConnections
+	}
+	if override.MaxKeepaliveConnections != nil {
+		p.maxKeepaliveConnections = *override.MaxKeepaliveConnections
+	}
+	if override.KeepaliveExpiry != nil {
+		p.keepaliveExpiry = time.Duration(*override.KeepaliveExpiry * float64(time.Second))
+	}
+	if override.LocalAddresses != nil {
+		addrs, err := expandLocalAddresses(override.LocalAddresses)
+		if err == nil {
+			p.localAddrs = addrs
+		}
+	}
+	if override.Proxies != nil {
+		ps, err := parseProxies(override.Proxies)
+		if err == nil {
+			p.proxies = ps
+		}
+	}
+	if override.UsingTorProxy != nil {
+		p.usingTorProxy = *override.UsingTorProxy
+	}
+	if override.MaxRedirects != nil {
+		p.maxRedirects = *override.MaxRedirects
+	}
+	if override.Retries != nil {
+		p.retries = *override.Retries
+	}
+	if override.RetryOnHTTPError != nil {
+		p.retryOnHTTPError = override.RetryOnHTTPError
+	}
+	if override.UserAgent != "" {
+		p.userAgent = override.UserAgent
+	}
+	if override.RequestTimeout != nil {
+		p.timeout = time.Duration(*override.RequestTimeout * float64(time.Second))
+	}
+	if override.Timeout != nil {
+		p.timeout = time.Duration(*override.Timeout * float64(time.Second))
+	}
+
+	// Apply outgoing-level proxies
+	if outgoing.Proxies != nil {
+		ps, err := parseProxies(outgoing.Proxies)
+		if err == nil {
+			p.proxies = ps
+		}
+	}
+	if outgoing.SourceIPs != nil {
+		addrs, err := expandLocalAddresses(outgoing.SourceIPs)
+		if err == nil {
+			p.localAddrs = addrs
+		}
+	}
+
+	return p
+}
+
+func newNetwork(name string, p networkParams) *Network {
+	maxConn := p.maxConnections
+	if maxConn <= 0 {
+		maxConn = 100
+	}
+	maxKeepalive := p.maxKeepaliveConnections
+	if maxKeepalive <= 0 {
+		maxKeepalive = 10
+	}
+
+	return &Network{
+		Name:                     name,
+		EnableHTTP:               p.enableHTTP,
+		Verify:                   p.verify,
+		EnableHTTP2:              p.enableHTTP2,
+		MaxConnections:           maxConn,
+		MaxKeepaliveConnections:  maxKeepalive,
+		KeepaliveExpiry:          p.keepaliveExpiry,
+		LocalAddresses:           p.localAddrs,
+		Proxies:                  p.proxies,
+		UsingTorProxy:            p.usingTorProxy,
+		MaxRedirects:             p.maxRedirects,
+		Retries:                  p.retries,
+		RetryOnHTTPError:         p.retryOnHTTPError,
+		UserAgent:                p.userAgent,
+		UserAgentSuffix:          p.userAgentSuffix,
+		Timeout:                  p.timeout,
+		clients:                  make(map[ClientKey]*restyClientRef),
+	}
+}
+
+// checkTorProxy verifies that this network's outbound IP is a Tor exit node.
+// Stub implementation — real check added in observability Part.
+func (n *Network) checkTorProxy() error {
+	if !n.UsingTorProxy {
+		return nil
+	}
+	if n.Proxies.Len() == 0 {
+		return nil
+	}
+	return nil
 }

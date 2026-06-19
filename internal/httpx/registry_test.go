@@ -4,7 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/seargo/seargo/internal/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNetwork_GetClient_SameKeyReturnsSameClient(t *testing.T) {
@@ -115,3 +117,130 @@ func TestNetwork_ClientKey_ProxyDigestStable(t *testing.T) {
 	n2 := &Network{Name: "empty"}
 	assert.Equal(t, "", n2.proxyDigest())
 }
+
+func TestRegistry_Initialize_CreatesDefault(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:    3.0,
+			PoolConnections:   100,
+			PoolMaxsize:       10,
+			KeepaliveExpiry:   5.0,
+			MaxRedirects:      30,
+			EnableHTTP:        true,
+			Retries:           0,
+		},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", Timeout: 10.0},
+		},
+	}
+
+	r, err := NewRegistry(cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, r.Get("default"))
+	assert.NotNil(t, r.Get("ipv4"))
+	assert.NotNil(t, r.Get("ipv6"))
+	assert.NotNil(t, r.Get("google"))
+	assert.NotNil(t, r.Get("image_proxy"))
+}
+
+func TestRegistry_Initialize_CustomNetwork(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+			Networks: map[string]config.OutgoingNetworkOverride{
+				"tor": {
+					UsingTorProxy: boolPtr(true),
+				},
+			},
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	r, err := NewRegistry(cfg)
+	require.NoError(t, err)
+	assert.NotNil(t, r.Get("tor"))
+}
+
+func TestRegistry_Initialize_DuplicateBuiltinFails(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+			Networks: map[string]config.OutgoingNetworkOverride{
+				"default": {},
+			},
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	_, err := NewRegistry(cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "conflicts")
+}
+
+func TestRegistry_Initialize_EngineNetwork(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{
+			{Name: "bing", Engine: "bing", Timeout: 5.0},
+		},
+	}
+
+	r, err := NewRegistry(cfg)
+	require.NoError(t, err)
+	bingNet := r.Get("bing")
+	assert.NotNil(t, bingNet)
+	assert.Equal(t, 5*time.Second, bingNet.Timeout)
+}
+
+func TestRegistry_Get_Missing(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	r, _ := NewRegistry(cfg)
+	assert.Nil(t, r.Get("nonexistent"))
+}
+
+func TestRegistry_Close(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	r, _ := NewRegistry(cfg)
+	assert.NoError(t, r.Close())
+}
+
+func boolPtr(b bool) *bool { return &b }
