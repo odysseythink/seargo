@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/go-resty/resty/v2"
+
 	"github.com/seargo/seargo/internal/logger"
 )
 
@@ -133,7 +135,191 @@ type Response struct {
 	Duration   time.Duration
 }
 
-// Do executes the built request. Stub — full implementation in Task 2.
-func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
-	return nil, fmt.Errorf("Do not implemented yet")
+// resolveNetwork resolves the network for this Client.
+// Priority: explicit networkName → engineName → "default".
+func (c *Client) resolveNetwork() (*Network, error) {
+	if c.networkName != "" {
+		n := c.registry.Get(c.networkName)
+		if n == nil {
+			return nil, fmt.Errorf("unknown network %q", c.networkName)
+		}
+		return n, nil
+	}
+
+	if c.engineName != "" {
+		n := c.registry.Get(c.engineName)
+		if n != nil {
+			return n, nil
+		}
+	}
+
+	n := c.registry.Get("default")
+	if n == nil {
+		return nil, fmt.Errorf("default network not found")
+	}
+	return n, nil
 }
+
+// chooseUserAgent selects a User-Agent string.
+// Priority: network.UserAgent > defaultUA.
+func chooseUserAgent(network *Network, defaultUA string, _ *UserAgentPool) string {
+	if network != nil && network.UserAgent != "" {
+		return network.UserAgent + network.UserAgentSuffix
+	}
+	return defaultUA
+}
+
+// Do executes the built request through the Client's network.
+func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// 1. Resolve network
+	network, err := rb.client.resolveNetwork()
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Check HTTP disabled
+	if !network.EnableHTTP && rb.url != "" {
+		parsedScheme := parseScheme(rb.url)
+		if parsedScheme == "http" {
+			return nil, fmt.Errorf("HTTP protocol is disabled for network %q", network.Name)
+		}
+	}
+
+	// 3. Determine timeout
+	timeout := rb.effectiveTimeout(network)
+
+	// 4. Determine max redirects
+	maxR := rb.maxRedirects
+	if maxR <= 0 {
+		maxR = network.MaxRedirects
+	}
+	if maxR <= 0 {
+		maxR = 30
+	}
+
+	// 5. Determine verify
+	verify := rb.boolHeader("X-SearGo-Skip-Verify") == "" && network.Verify
+
+	// 6. Select local address and proxy
+	localAddr := network.nextLocalAddress()
+	proxyDigest := network.nextProxyDigest()
+
+	// 7. Get or create resty client from Network cache
+	restyClient, err := network.GetClient(verify, maxR, localAddr, proxyDigest)
+	if err != nil {
+		return nil, fmt.Errorf("get network client: %w", err)
+	}
+
+	// 8. Set timeout on client and build resty request
+	restyClient.SetTimeout(timeout)
+	req := restyClient.R().
+		SetContext(ctx).
+		SetQueryParams(rb.queryParams).
+		SetHeaders(rb.headers)
+
+	if len(rb.body) > 0 {
+		req.SetBody(rb.body)
+	}
+	if len(rb.formData) > 0 {
+		req.SetFormData(rb.formData)
+	}
+
+	// 9. UA selection
+	if _, hasUA := rb.headers["User-Agent"]; !hasUA {
+		ua := chooseUserAgent(network, rb.client.defaultUA, nil)
+		if ua != "" {
+			req.SetHeader("User-Agent", ua)
+		}
+	}
+
+	// 10. Execute
+	start := time.Now()
+	var restyResp *resty.Response
+	switch rb.method {
+	case "GET":
+		restyResp, err = req.Get(rb.url)
+	case "POST":
+		restyResp, err = req.Post(rb.url)
+	default:
+		return nil, fmt.Errorf("unsupported method: %s", rb.method)
+	}
+	duration := time.Since(start)
+
+	if err != nil {
+		return nil, classifyTransportError(err)
+	}
+
+	// 11. Build Response
+	resp := &Response{
+		StatusCode: restyResp.StatusCode(),
+		Body:       restyResp.Body(),
+		Headers:    restyResp.RawResponse.Header,
+		URL:        restyResp.Request.URL,
+		Duration:   duration,
+	}
+
+	// 12. HTTP error classification (stub)
+	if err := raiseForHTTPError(resp); err != nil {
+		return resp, err
+	}
+
+	// 13. Metrics and logging (stub)
+	recordMetrics(network.Name, rb.client.engineName, resp.StatusCode, duration, nil)
+	logResponse(rb.client.engineName, network.Name, rb.method, rb.url, resp.StatusCode, nil)
+
+	return resp, nil
+}
+
+// effectiveTimeout returns the effective timeout: explicit > network > client default > 3s.
+func (rb *RequestBuilder) effectiveTimeout(network *Network) time.Duration {
+	if rb.timeout > 0 {
+		return rb.timeout
+	}
+	if rb.client.defaultTimeout > 0 {
+		return rb.client.defaultTimeout
+	}
+	if network != nil && network.Timeout > 0 {
+		return rb.client.defaultTimeout
+	}
+	return 3 * time.Second
+}
+
+func (rb *RequestBuilder) boolHeader(key string) string {
+	return rb.headers[key]
+}
+
+func parseScheme(rawURL string) string {
+	for i := 0; i < len(rawURL); i++ {
+		if rawURL[i] == ':' {
+			return rawURL[:i]
+		}
+		if rawURL[i] == '/' {
+			break
+		}
+	}
+	return ""
+}
+
+// UserAgentPool manages a pool of User-Agent strings.
+// Stub — replaced in observability Part.
+type UserAgentPool struct{}
+
+// Stub — replaced in resilience Part.
+func classifyTransportError(err error) error {
+	return fmt.Errorf("transport error: %w", err)
+}
+
+// Stub — replaced in resilience Part.
+func raiseForHTTPError(resp *Response) error {
+	return nil
+}
+
+// Stub — replaced in observability Part.
+func recordMetrics(network, engine string, statusCode int, duration time.Duration, err error) {}
+
+// Stub — replaced in observability Part.
+func logResponse(engine, network, method, url string, statusCode int, err error) {}

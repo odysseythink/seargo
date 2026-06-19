@@ -458,9 +458,7 @@ func buildParams(outgoing config.OutgoingConfig, override config.OutgoingNetwork
 		usingTorProxy:           outgoing.UsingTorProxy,
 	}
 
-	if outgoing.EnableHTTP {
-		p.enableHTTP = true
-	}
+	p.enableHTTP = outgoing.EnableHTTP
 
 	if outgoing.MaxRedirects > 0 {
 		p.maxRedirects = outgoing.MaxRedirects

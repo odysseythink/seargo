@@ -111,6 +111,158 @@ func TestClient_WithNetwork(t *testing.T) {
 	assert.Equal(t, c.engineName, c2.engineName, "engineName should be preserved")
 }
 
+func TestResolveNetwork_ExplicitNetwork(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "ipv4", "test", "", 0)
+	n, err := c.resolveNetwork()
+	assert.NoError(t, err)
+	assert.Equal(t, "ipv4", n.Name)
+}
+
+func TestResolveNetwork_EngineFallback(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{
+			{Name: "google", Engine: "google", Timeout: 5.0},
+		},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "google", "", 0)
+	n, err := c.resolveNetwork()
+	assert.NoError(t, err)
+	assert.Equal(t, "google", n.Name)
+}
+
+func TestResolveNetwork_DefaultFallback(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "unknown-engine", "", 0)
+	n, err := c.resolveNetwork()
+	assert.NoError(t, err)
+	assert.Equal(t, "default", n.Name)
+}
+
+func TestResolveNetwork_UnknownExplicitNetwork(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "missing", "", "", 0)
+	_, err := c.resolveNetwork()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown network")
+}
+
+func TestChooseUserAgent_Priority(t *testing.T) {
+	n := &Network{UserAgent: "NetworkUA/1.0"}
+	ua := chooseUserAgent(n, "DefaultUA/1.0", nil)
+	assert.Equal(t, "NetworkUA/1.0", ua)
+
+	n2 := &Network{UserAgent: ""}
+	ua2 := chooseUserAgent(n2, "DefaultUA/1.0", nil)
+	assert.Equal(t, "DefaultUA/1.0", ua2)
+}
+
+func TestDo_HTTPDisabled(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      false,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "test", "", 0)
+	_, err := c.R().Get("http://example.com/")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "HTTP protocol is disabled")
+}
+
+func TestDo_TimeoutDefaults(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "test", "", 15*time.Second)
+	rb := c.R()
+	timeout := rb.effectiveTimeout(reg.Get("default"))
+	assert.Equal(t, 15*time.Second, timeout, "should use client defaultTimeout")
+}
+
+func TestDo_TimeoutOverride(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+
+	reg, _ := NewRegistry(cfg)
+	c := NewClient(reg, "", "test", "", 15*time.Second)
+	rb := c.R().SetTimeout(2 * time.Second)
+	timeout := rb.effectiveTimeout(reg.Get("default"))
+	assert.Equal(t, 2*time.Second, timeout, "explicit SetTimeout should override default")
+}
+
 func TestClient_SetProxy_DeprecatedNoop(t *testing.T) {
 	cfg := &config.Config{
 		Outgoing: config.OutgoingConfig{
