@@ -102,6 +102,25 @@ type ServerConfig struct {
 	DefaultHTTPHeaders  map[string]string `yaml:"default_http_headers"`
 }
 
+// OutgoingNetworkOverride 用于 outgoing.networks.<name> 配置覆盖。
+type OutgoingNetworkOverride struct {
+	EnableHTTP              *bool       `yaml:"enable_http"`
+	Verify                  *bool       `yaml:"verify"`
+	EnableHTTP2             *bool       `yaml:"enable_http2"`
+	MaxConnections          *int        `yaml:"max_connections"`
+	MaxKeepaliveConnections *int        `yaml:"max_keepalive_connections"`
+	KeepaliveExpiry         *float64    `yaml:"keepalive_expiry"`
+	LocalAddresses          interface{} `yaml:"local_addresses"`
+	Proxies                 interface{} `yaml:"proxies"`
+	UsingTorProxy           *bool       `yaml:"using_tor_proxy"`
+	MaxRedirects            *int        `yaml:"max_redirects"`
+	Retries                 *int        `yaml:"retries"`
+	RetryOnHTTPError        interface{} `yaml:"retry_on_http_error"`
+	UserAgent               string      `yaml:"useragent"`
+	RequestTimeout          *float64    `yaml:"request_timeout"`
+	Timeout                 *float64    `yaml:"timeout"`
+}
+
 type OutgoingConfig struct {
 	UserAgentSuffix   string      `yaml:"useragent_suffix"`
 	RequestTimeout    float64     `yaml:"request_timeout"`
@@ -117,8 +136,12 @@ type OutgoingConfig struct {
 	SourceIPs         interface{} `yaml:"source_ips"`
 	UsingTorProxy     bool        `yaml:"using_tor_proxy"`
 	ExtraProxyTimeout int         `yaml:"extra_proxy_timeout"`
-	UserAgent         string      `yaml:"useragent"`
-	Timeout           int         `yaml:"timeout"`
+	UserAgent         string                            `yaml:"useragent"`
+	Timeout           int                               `yaml:"timeout"`
+	// Phase 3 — Network Layer
+	EnableHTTP       bool                             `yaml:"enable_http"`          // 是否允许 HTTP；默认 true
+	Networks         map[string]OutgoingNetworkOverride `yaml:"networks"`            // 自定义网络
+	RetryOnHTTPError interface{}                      `yaml:"retry_on_http_error"`  // nil | bool | int | []int
 }
 
 type UIConfig struct {
@@ -521,6 +544,20 @@ func overlayOutgoing(dst *OutgoingConfig, src *OutgoingConfig) {
 	}
 	if src.Timeout != 0 {
 		dst.RequestTimeout = float64(src.Timeout)
+	}
+	if src.EnableHTTP {
+		dst.EnableHTTP = true
+	}
+	if src.Networks != nil {
+		if dst.Networks == nil {
+			dst.Networks = make(map[string]OutgoingNetworkOverride)
+		}
+		for k, v := range src.Networks {
+			dst.Networks[k] = v
+		}
+	}
+	if src.RetryOnHTTPError != nil {
+		dst.RetryOnHTTPError = src.RetryOnHTTPError
 	}
 }
 
