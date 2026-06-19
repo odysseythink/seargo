@@ -113,3 +113,59 @@ func TestProxySet_Next_Empty(t *testing.T) {
 	ps := &ProxySet{byPattern: make(map[string][]ProxyURL)}
 	assert.Empty(t, ps.Next())
 }
+
+func TestExpandLocalAddresses_Nil(t *testing.T) {
+	addrs, err := expandLocalAddresses(nil)
+	require.NoError(t, err)
+	assert.Empty(t, addrs)
+}
+
+func TestExpandLocalAddresses_SingleIP(t *testing.T) {
+	addrs, err := expandLocalAddresses("192.168.1.1")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"192.168.1.1"}, addrs)
+}
+
+func TestExpandLocalAddresses_IPList(t *testing.T) {
+	addrs, err := expandLocalAddresses([]interface{}{"10.0.0.1", "10.0.0.2"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.1", "10.0.0.2"}, addrs)
+}
+
+func TestExpandLocalAddresses_CIDR(t *testing.T) {
+	// /30 → 2 usable hosts: .1 and .2
+	addrs, err := expandLocalAddresses("192.168.1.0/30")
+	require.NoError(t, err)
+	assert.Len(t, addrs, 2)
+	assert.Equal(t, "192.168.1.1", addrs[0])
+	assert.Equal(t, "192.168.1.2", addrs[1])
+}
+
+func TestExpandLocalAddresses_CIDRTooLarge(t *testing.T) {
+	// /16 → 65534 hosts, should be rejected > maxSourceIPs (1024)
+	_, err := expandLocalAddresses("10.0.0.0/16")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "too many source_ips")
+}
+
+func TestExpandLocalAddresses_InvalidIP(t *testing.T) {
+	_, err := expandLocalAddresses("not-an-ip")
+	assert.Error(t, err)
+}
+
+func TestExpandLocalAddresses_InvalidCIDR(t *testing.T) {
+	_, err := expandLocalAddresses("10.0.0.0/99")
+	assert.Error(t, err)
+}
+
+func TestExpandLocalAddresses_MixedCIDRAndIP(t *testing.T) {
+	addrs, err := expandLocalAddresses([]interface{}{"10.0.0.1", "192.168.1.0/30"})
+	require.NoError(t, err)
+	assert.Len(t, addrs, 3) // 1 IP + 2 from /30
+}
+
+func TestExpandLocalAddresses_IPv6(t *testing.T) {
+	addrs, err := expandLocalAddresses("::1")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"::1"}, addrs)
+}
