@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -318,9 +319,13 @@ func parseScheme(rawURL string) string {
 	return ""
 }
 
-// UserAgentPool manages a pool of User-Agent strings.
-// Stub — replaced in observability Part.
-type UserAgentPool struct{}
+// UserAgentPool holds OS and version data for generating random User-Agent strings.
+type UserAgentPool struct {
+	mu       sync.RWMutex
+	OSes     []string `json:"os"`
+	Template string   `json:"ua"`
+	Versions []string `json:"versions"`
+}
 
 
 // Stub — replaced in observability Part.
