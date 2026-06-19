@@ -175,3 +175,15 @@ func TestParseBangPriority(t *testing.T) {
 	assert.False(t, extP.Check(input2), "ExternalBangParser must NOT match !g")
 	assert.True(t, bangP.Check(input2), "BangParser must match !g")
 }
+
+func TestAutocompleteTriggerParser(t *testing.T) {
+	p := AutocompleteTriggerParser{}
+
+	assert.True(t, p.Check("?", true))
+	assert.False(t, p.Check("?", false))
+	assert.False(t, p.Check("golang", true))
+
+	part, ok := p.Parse("?")
+	assert.True(t, ok)
+	assert.Equal(t, PartAutocompleteTrigger, part.Type)
+}
