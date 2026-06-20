@@ -13,14 +13,22 @@ import (
 
 func init() {
 	plugin.RegisterBuiltin("tor_check", func() plugin.Plugin {
-		return &torCheckPlugin{
-			httpClient: &http.Client{Timeout: 5 * time.Second},
-		}
+		return &torCheckPlugin{}
 	})
 }
 
+// torCheckPlugin adds a result showing whether the user's IP is a known Tor exit node.
+// It runs via PostSearch when the query matches one of its keywords exactly.
 type torCheckPlugin struct {
-	httpClient *http.Client
+	httpClient *http.Client // optional; defaults to 5s timeout client
+}
+
+// getHTTPClient returns the configured client or a default one.
+func (t *torCheckPlugin) getHTTPClient() *http.Client {
+	if t.httpClient != nil {
+		return t.httpClient
+	}
+	return &http.Client{Timeout: 5 * time.Second}
 }
 
 func (t *torCheckPlugin) ID() string { return "tor_check" }
@@ -29,21 +37,30 @@ func (t *torCheckPlugin) Info() plugin.PluginInfo {
 	return plugin.PluginInfo{
 		ID:                t.ID(),
 		Name:              "Tor Check",
-		Description:       "Check if your IP address is a known Tor exit node.",
-		PreferenceSection: "privacy",
+		Description:       "Check if your IP address is a known Tor exit node. Triggered by 'tor-check' keyword.",
+		PreferenceSection: "general",
 		Keywords:          []string{"tor-check", "tor_check", "torcheck", "tor", "tor check"},
 	}
 }
 
-func (t *torCheckPlugin) Init(ctx *plugin.AppContext) bool { return true }
-func (t *torCheckPlugin) PreSearch(ctx *plugin.SearchContext) bool { return true }
-func (t *torCheckPlugin) OnResult(ctx *plugin.SearchContext, r *models.Result) bool { return true }
+func (t *torCheckPlugin) Init(ctx *plugin.AppContext) bool {
+	return true
+}
+
+func (t *torCheckPlugin) PreSearch(ctx *plugin.SearchContext) bool {
+	return true
+}
+
+func (t *torCheckPlugin) OnResult(ctx *plugin.SearchContext, r *models.Result) bool {
+	return true
+}
 
 func (t *torCheckPlugin) PostSearch(ctx *plugin.SearchContext) []models.Result {
 	if ctx.PageNo > 1 {
 		return nil
 	}
 
+	// Check exact keyword match: the query trimmed and lowered must match one of the keywords exactly.
 	query := strings.TrimSpace(strings.ToLower(ctx.Query))
 	matched := false
 	for _, kw := range t.Info().Keywords {
@@ -56,34 +73,42 @@ func (t *torCheckPlugin) PostSearch(ctx *plugin.SearchContext) []models.Result {
 		return nil
 	}
 
-	remoteAddr, _ := ctx.Preferences["remote_addr"].(string)
-	if remoteAddr == "" {
-		remoteAddr = "unknown"
+	ip := ctx.RemoteAddr
+	if ip == "" {
+		ip = "unknown"
 	}
 
-	isTor, err := t.checkTorExitNode(remoteAddr)
+	// Fetch Tor exit node list and check the IP.
+	isTor, err := checkTorExitNode(t.getHTTPClient(), ip)
 	if err != nil {
 		return []models.Result{
-			{Kind: "answer", Title: "Tor check unavailable", Content: "Tor check unavailable"},
+			{
+				Kind:    "answer",
+				Title:   "Tor Check",
+				Content: "Tor check unavailable",
+				Engine:  "tor_check",
+			},
 		}
 	}
 
-	var answer string
+	result := models.Result{
+		Kind:   "answer",
+		Title:  "Tor Check",
+		Engine: "tor_check",
+	}
+
 	if isTor {
-		answer = fmt.Sprintf("Your IP %s appears to be a Tor exit node.", remoteAddr)
+		result.Content = fmt.Sprintf("Your IP %s appears to be a Tor exit node.", ip)
 	} else {
-		answer = fmt.Sprintf("Your IP %s does not appear to be a Tor exit node.", remoteAddr)
+		result.Content = fmt.Sprintf("Your IP %s does not appear to be a Tor exit node.", ip)
 	}
-	return []models.Result{
-		{Kind: "answer", Title: answer, Content: answer},
-	}
+
+	return []models.Result{result}
 }
 
-func (t *torCheckPlugin) checkTorExitNode(ip string) (bool, error) {
-	if t.httpClient == nil {
-		return false, fmt.Errorf("no HTTP client configured")
-	}
-	resp, err := t.httpClient.Get("https://check.torproject.org/exit-addresses")
+// checkTorExitNode fetches the Tor exit list and checks if the given IP is listed.
+func checkTorExitNode(client *http.Client, ip string) (bool, error) {
+	resp, err := client.Get("https://check.torproject.org/exit-addresses")
 	if err != nil {
 		return false, err
 	}
@@ -99,5 +124,6 @@ func (t *torCheckPlugin) checkTorExitNode(ip string) (bool, error) {
 			}
 		}
 	}
+
 	return false, scanner.Err()
 }
