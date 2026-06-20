@@ -1,6 +1,7 @@
 package wikipedia
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 
 func TestWikipediaEngine(t *testing.T) {
 	w := &Wikipedia{}
-	err := w.Init(nil, engine.EngineInitConfig{})
-	assert.NoError(t, err)
+	ok := w.Init(context.Background(), engine.EngineInitConfig{})
+	assert.True(t, ok)
 	assert.Equal(t, "wikipedia", w.Name())
 }

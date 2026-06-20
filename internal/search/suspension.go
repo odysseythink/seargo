@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/errors"
 )
 
@@ -95,7 +96,32 @@ func classifyError(err error) string {
 		return ""
 	}
 
-	// Check for typed EngineErrors first
+	// Check for engine.SearxEngineResponseException first
+	if e, ok := err.(*engine.SearxEngineResponseException); ok {
+		switch e.ErrorClass() {
+		case "captcha":
+			msg := strings.ToLower(e.Error())
+			if strings.Contains(msg, "cloudflare") {
+				return "cf_SearxEngineCaptcha"
+			}
+			if strings.Contains(msg, "recaptcha") {
+				return "recaptcha_SearxEngineCaptcha"
+			}
+			return "SearxEngineCaptcha"
+		case "access_denied":
+			msg := strings.ToLower(e.Error())
+			if strings.Contains(msg, "cloudflare") || strings.Contains(msg, "1020") {
+				return "cf_SearxEngineAccessDenied"
+			}
+			return "SearxEngineAccessDenied"
+		case "too_many_requests":
+			return "SearxEngineTooManyRequests"
+		case "timeout":
+			return "SearxEngineTooManyRequests"
+		}
+	}
+
+	// Check for typed EngineErrors
 	if ee, ok := err.(*errors.EngineError); ok {
 		switch ee.SuspendedTimeCategory {
 		case "captcha":

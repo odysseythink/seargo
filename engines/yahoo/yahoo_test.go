@@ -1,6 +1,7 @@
 package yahoo
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 
 func TestYahooEngine(t *testing.T) {
 	y := &Yahoo{}
-	err := y.Init(nil, engine.EngineInitConfig{})
-	assert.NoError(t, err)
+	ok := y.Init(context.Background(), engine.EngineInitConfig{})
+	assert.True(t, ok)
 	assert.Equal(t, "yahoo", y.Name())
 }

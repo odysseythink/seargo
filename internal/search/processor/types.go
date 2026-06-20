@@ -8,6 +8,7 @@ import (
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/search/query"
 	"github.com/seargo/seargo/pkg/models"
+	"github.com/seargo/seargo/pkg/models/results"
 )
 
 var ErrUnsupportedSearch = errors.New("unsupported search")
@@ -31,12 +32,13 @@ type RequestParams struct {
 
 // ProcessorResult 是单次 processor 搜索返回的结果流。
 type ProcessorResult struct {
-	Results     []models.Result
-	Suggestions []string
-	Answers     []models.Answer
-	Corrections []string
-	Infoboxes   []models.Infobox
-	EngineData  map[string]any
+	Results      []models.Result   // kept during migration
+	TypedResults []results.Result  // new
+	Suggestions  []string
+	Answers      []models.Answer
+	Corrections  []string
+	Infoboxes    []models.Infobox
+	EngineData   map[string]any
 }
 
 // Processor 是搜索处理器的统一接口。

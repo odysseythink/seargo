@@ -39,3 +39,21 @@ func Names() []string {
 	}
 	return names
 }
+
+// SetAll replaces the entire registry atomically. Used by Loader during
+// initialization and hot reload.
+func SetAll(m map[string]Engine) {
+	mu.Lock()
+	defer mu.Unlock()
+	registry = make(map[string]Engine, len(m))
+	for k, v := range m {
+		registry[k] = v
+	}
+}
+
+// Reset clears the registry. Used in tests.
+func Reset() {
+	mu.Lock()
+	defer mu.Unlock()
+	registry = make(map[string]Engine)
+}

@@ -1,22 +1,13 @@
 import { useState } from 'react';
 import { useSearchStore } from '../stores/searchStore';
-
-const engineColors: Record<string, string> = {
-  google: '#ea4335',
-  bing: '#00809d',
-  duckduckgo: '#de5833',
-  brave: '#fb542b',
-  wikipedia: '#3366cc',
-  yahoo: '#6001d2',
-};
-
-function getEngineColor(name: string): string {
-  return engineColors[name.toLowerCase()] || '#6b7280';
-}
+import { ResultCard } from '../components/results/ResultCard';
+import { ImageGrid } from '../components/results/ImageGrid';
+import { AnswerBox } from '../components/results/AnswerBox';
+import { InfoboxPanel } from '../components/results/InfoboxPanel';
 
 export default function SearchPage() {
   const [input, setInput] = useState('');
-  const { results, isLoading, enginesUsed, enginesFailed, responseTimeMs, error, search } = useSearchStore();
+  const { results, answers, corrections, infoboxes, isLoading, enginesUsed, enginesFailed, responseTimeMs, error, search } = useSearchStore();
   const hasSearched = results.length > 0 || error !== null || enginesUsed.length > 0;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,6 +16,10 @@ export default function SearchPage() {
       search({ q: input.trim() });
     }
   };
+
+  // Separate image results for grid layout
+  const imageResults = results.filter(r => r.kind === 'image') as any[];
+  const nonImageResults = results.filter(r => r.kind !== 'image');
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-[#e5e5e5]">
@@ -42,8 +37,7 @@ export default function SearchPage() {
           <div className="flex gap-2">
             <div className="flex-1 relative">
               <input
-                type="text"
-                value={input}
+                type="text" value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Search the web..."
                 className="w-full px-5 py-3.5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
@@ -52,36 +46,26 @@ export default function SearchPage() {
                          transition-all duration-200 text-base"
               />
               {input && (
-                <button
-                  type="button"
-                  onClick={() => setInput('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#e5e5e5]"
-                >
+                <button type="button" onClick={() => setInput('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#e5e5e5]">
                   ✕
                 </button>
               )}
             </div>
-            <button
-              type="submit"
-              disabled={isLoading}
+            <button type="submit" disabled={isLoading}
               className="px-6 py-3.5 bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#1e3a5f]
                        rounded-xl font-medium transition-all duration-200
-                       flex items-center gap-2 min-w-[100px] justify-center"
-            >
+                       flex items-center gap-2 min-w-[100px] justify-center">
               {isLoading ? (
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                'Search'
-              )}
+              ) : 'Search'}
             </button>
           </div>
         </form>
 
         {/* Error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-300">
-            {error}
-          </div>
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-300">{error}</div>
         )}
 
         {/* Results Stats */}
@@ -89,51 +73,47 @@ export default function SearchPage() {
           <div className="mb-4 text-sm text-[#9ca3af]">
             Found <span className="text-[#e5e5e5] font-medium">{results.length}</span> results
             {responseTimeMs > 0 && ` in ${responseTimeMs}ms`}
-            {enginesUsed.length > 0 && (
-              <span> · Engines: {enginesUsed.join(', ')}</span>
-            )}
-            {enginesFailed.length > 0 && (
-              <span className="text-red-400"> · Failed: {enginesFailed.join(', ')}</span>
-            )}
+            {enginesUsed.length > 0 && <span> · Engines: {enginesUsed.join(', ')}</span>}
+            {enginesFailed.length > 0 && <span className="text-red-400"> · Failed: {enginesFailed.join(', ')}</span>}
           </div>
         )}
 
-        {/* Results */}
+        {/* Answers */}
+        {answers.length > 0 && (
+          <div className="mb-6 space-y-2">
+            {answers.map((a, i) => <AnswerBox key={i} answer={a} />)}
+          </div>
+        )}
+
+        {/* Corrections */}
+        {corrections.length > 0 && (
+          <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-xl text-yellow-300 text-sm">
+            Did you mean: {corrections.join(', ')}?
+          </div>
+        )}
+
+        {/* Infoboxes */}
+        {infoboxes.length > 0 && (
+          <div className="mb-6 space-y-4">
+            {infoboxes.map((inf, i) => <InfoboxPanel key={i} infobox={inf} />)}
+          </div>
+        )}
+
+        {/* Image Grid (when images present) */}
+        {imageResults.length > 0 && <ImageGrid results={imageResults} />}
+
+        {/* Non-image Results */}
         <div className="space-y-3">
-          {results.map((r, i) => (
-            <div
-              key={i}
-              className="p-5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
-                       hover:border-[rgba(255,255,255,0.15)] transition-all duration-200
-                       animate-fade-in"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <a
-                href={r.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-lg font-medium text-[#60a5fa] hover:text-[#93c5fd] hover:underline block mb-1"
-              >
-                {r.title}
-              </a>
-              <p className="text-[#22c55e] text-sm mb-2 truncate">{r.url}</p>
-              <p className="text-[#9ca3af] text-sm leading-relaxed">{r.content}</p>
-              <div className="mt-3 flex items-center gap-2">
-                <span
-                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-                  style={{ backgroundColor: getEngineColor(r.engine) }}
-                >
-                  {r.engine}
-                </span>
-                {r.score > 0 && (
-                  <span className="text-xs text-[#6b7280]">Score: {r.score.toFixed(2)}</span>
-                )}
-              </div>
+          {nonImageResults.map((r, i) => (
+            <div key={r.url + i}
+                 className="animate-fade-in"
+                 style={{ animationDelay: `${i * 60}ms` }}>
+              <ResultCard result={r} />
             </div>
           ))}
         </div>
 
-        {/* Empty state after search */}
+        {/* Empty state */}
         {hasSearched && results.length === 0 && !isLoading && !error && (
           <div className="text-center py-12 text-[#6b7280]">
             <p className="text-lg mb-2">No results found</p>

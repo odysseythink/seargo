@@ -37,9 +37,19 @@ func (d *DuckDuckGo) Capabilities() engine.Capabilities {
 	}
 }
 
-func (d *DuckDuckGo) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
-	d.client = client
-	return nil
+func (d *DuckDuckGo) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (d *DuckDuckGo) Setup(cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (d *DuckDuckGo) About() engine.EngineAbout {
+	return engine.EngineAbout{
+		Website:    "https://duckduckgo.com",
+		WikidataID: "Q1041718",
+	}
 }
 
 func (d *DuckDuckGo) Search(ctx context.Context, req *models.Request) (*models.Response, error) {

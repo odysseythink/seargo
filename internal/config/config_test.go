@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func TestLoad(t *testing.T) {
@@ -342,4 +343,68 @@ engines:
 			}
 		})
 	}
+}
+
+func TestEngineConfigNewFields(t *testing.T) {
+	yamlData := `
+engines:
+  - name: google
+    engine: google
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    weight: 1.5
+    display_error_messages: true
+    enable_http: false
+    inactive: false
+    disabled: false
+    tokens: ["token1", "token2"]
+    network: "google_net"
+    short_cut: g
+    categories: [general, images]
+    soft_max_redirects: 5
+    no_result_for_http_status: [403, 404]
+    raise_for_http_error: [429, 503]
+`
+	cfg := &Config{}
+	err := yaml.Unmarshal([]byte(yamlData), cfg)
+	require.NoError(t, err)
+	require.Len(t, cfg.Engines, 1)
+
+	e := cfg.Engines[0]
+	assert.Equal(t, "google", e.Name)
+	assert.True(t, e.Paging)
+	assert.True(t, e.TimeRangeSupport)
+	assert.True(t, e.LanguageSupport)
+	assert.True(t, e.SafeSearch)
+	assert.Equal(t, 1.5, e.Weight)
+	assert.True(t, e.DisplayErrorMessages)
+	assert.False(t, e.EnableHTTP)
+	assert.False(t, e.Inactive)
+	assert.False(t, e.Disabled)
+	assert.Equal(t, []string{"token1", "token2"}, e.Tokens)
+	assert.Equal(t, "google_net", e.Network)
+	assert.Equal(t, 5, e.SoftMaxRedirects)
+	assert.Equal(t, []int{403, 404}, e.NoResultForHTTPStatus)
+}
+
+func TestEngineConfigValidation_WeightNegative(t *testing.T) {
+	cfg := &Config{Server: ServerConfig{Port: 8080}, Search: SearchConfig{SafeSearch: 1}}
+	cfg.Engines = []EngineConfig{
+		{Name: "test", Engine: "test", Weight: -1},
+	}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "weight")
+}
+
+func TestEngineConfigValidation_TokenEmpty(t *testing.T) {
+	cfg := &Config{Server: ServerConfig{Port: 8080}, Search: SearchConfig{SafeSearch: 1}}
+	cfg.Engines = []EngineConfig{
+		{Name: "test", Engine: "test", Tokens: []string{""}},
+	}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "token")
 }

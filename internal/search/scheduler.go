@@ -21,6 +21,7 @@ import (
 	"github.com/seargo/seargo/internal/search/processor"
 	"github.com/seargo/seargo/internal/search/query"
 	"github.com/seargo/seargo/pkg/models"
+		"github.com/seargo/seargo/pkg/models/results"
 )
 
 type Scheduler struct {
@@ -99,18 +100,6 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client) (*Sch
 			logger.Warn("Engine not found", "engine", lookupName)
 			continue
 		}
-		initCfg := engine.EngineInitConfig{
-			Name:       ec.Name,
-			Shortcut:   ec.Shortcut,
-			Categories: toModelCategories(ec.Categories),
-			Timeout:    ec.Timeout,
-			Extra:      ec.Extra,
-		}
-		if err := eng.Init(client, initCfg); err != nil {
-			logger.Error("Failed to init engine", "engine", lookupName, "error", err)
-			continue
-		}
-
 		proc, err := processor.NewProcessorFromConfig(eng, ec, suspension, client)
 		if err != nil {
 			logger.Error("Failed to create processor", "engine", lookupName, "error", err)
@@ -122,6 +111,8 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client) (*Sch
 
 	// Compute global timeout
 	globalTimeout := time.Duration(cfg.Outgoing.RequestTimeout) * time.Second
+
+	metrics.EngineReloadsTotal.WithLabelValues("all", "success").Inc()
 
 	return &Scheduler{
 		processors:           processors,
@@ -195,11 +186,11 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	defer cancel()
 
 	// 6. Execute processors (concurrent)
-	container := NewResultContainer(s.engineWeights)
+	container := NewTypedResultContainer(s.engineWeights)
 	s.executeProcessors(ctx, procs, parsed, req.Page, container)
 	container.Close()
 
-	results := container.GetOrderedResults()
+	results := container.Results()
 	suggestions := container.GetSuggestions()
 	answers := container.GetAnswers()
 	corrections := container.GetCorrections()
@@ -250,7 +241,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 }
 
 // executeProcessors 并发执行所有 processor，将结果写入 container。
-func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *ResultContainer) {
+func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer) {
 	var wg sync.WaitGroup
 
 	for _, p := range procs {
@@ -266,6 +257,10 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 				metrics.EngineQueriesTotal.WithLabelValues(proc.Engine().Name(), "failed").Inc()
 				errorClass := classifyError(err)
 				metrics.EngineFailuresTotal.WithLabelValues(proc.Engine().Name(), errorClass).Inc()
+				// Track parser failures (e.g. JSON/HTML parsing errors from engines)
+				if strings.Contains(strings.ToLower(err.Error()), "parse") {
+					metrics.EngineParserFailures.WithLabelValues(proc.Engine().Name()).Inc()
+				}
 				logger.Warn("engine failed", "engine", proc.Engine().Name(), "error", err)
 				container.MarkUnresponsive(proc.Engine().Name(), err.Error())
 				return
@@ -273,8 +268,14 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 
 			metrics.EngineQueriesTotal.WithLabelValues(proc.Engine().Name(), "success").Inc()
 			metrics.EngineQueryDuration.WithLabelValues(proc.Engine().Name()).Observe(time.Since(engineStart).Seconds())
+			metrics.EngineResults.WithLabelValues(proc.Engine().Name()).Observe(float64(len(result.Results)))
 
-			container.Extend(proc.Engine().Name(), result.Results, 0)
+			if len(result.TypedResults) > 0 {
+				apiResults := results.ToAPIResult(result.TypedResults)
+				container.Extend(proc.Engine().Name(), apiResults, 0)
+			} else if len(result.Results) > 0 {
+				container.Extend(proc.Engine().Name(), result.Results, 0)
+			}
 			if len(result.Suggestions) > 0 {
 				container.AddSuggestions(proc.Engine().Name(), result.Suggestions)
 			}

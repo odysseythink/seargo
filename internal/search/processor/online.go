@@ -8,6 +8,7 @@ import (
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/search/query"
 	"github.com/seargo/seargo/pkg/models"
+	"github.com/seargo/seargo/pkg/models/results"
 )
 
 type OnlineProcessor struct {
@@ -61,8 +62,20 @@ func (p *OnlineProcessor) Search(ctx context.Context, q *query.ParsedQuery, page
 		return nil, err
 	}
 	p.RecordResult(true, nil)
+
+	// Wrap flat engine results into typed results
+	typedResults := make([]results.Result, 0, len(resp.Results))
+	for _, r := range resp.Results {
+		typedResults = append(typedResults, results.WrapAPIMainResult(r))
+	}
+
 	return &ProcessorResult{
-		Results:     resp.Results,
-		Suggestions: resp.Suggestions,
+		Results:      resp.Results,
+		TypedResults: typedResults,
+		Suggestions:  resp.Suggestions,
+		Answers:      resp.Answers,
+		Corrections:  resp.Corrections,
+		Infoboxes:    resp.Infoboxes,
+		EngineData:   resp.EngineData,
 	}, nil
 }

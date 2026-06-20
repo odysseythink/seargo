@@ -109,6 +109,32 @@ var (
 		},
 		[]string{"network", "engine", "error_class"},
 	)
+
+	// Phase 4: SearXNG-aligned metrics
+	EngineReloadsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_engine_reloads_total",
+			Help: "Total number of engine reloads.",
+		},
+		[]string{"engine", "status"},
+	)
+
+	EngineParserFailures = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_engine_parser_failures_total",
+			Help: "Total number of engine parser failures.",
+		},
+		[]string{"engine"},
+	)
+
+	EngineResults = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_engine_results",
+			Help:    "Number of results per engine per search.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"engine"},
+	)
 )
 
 func init() {
@@ -125,4 +151,7 @@ func init() {
 	prometheus.MustRegister(OutboundRequestsTotal)
 	prometheus.MustRegister(OutboundRequestDuration)
 	prometheus.MustRegister(OutboundErrorsTotal)
+	prometheus.MustRegister(EngineReloadsTotal)
+	prometheus.MustRegister(EngineParserFailures)
+	prometheus.MustRegister(EngineResults)
 }

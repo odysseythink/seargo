@@ -35,9 +35,19 @@ func (g *Google) Capabilities() engine.Capabilities {
 	}
 }
 
-func (g *Google) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
-	g.client = client
-	return nil
+func (g *Google) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (g *Google) Setup(cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (g *Google) About() engine.EngineAbout {
+	return engine.EngineAbout{
+		Website:    "https://www.google.com",
+		WikidataID: "Q95",
+	}
 }
 
 func (g *Google) Search(ctx context.Context, req *models.Request) (*models.Response, error) {

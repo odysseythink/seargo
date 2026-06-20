@@ -73,7 +73,6 @@ func (r *Request) Normalize(d NormalizeDefaults) {
 	}
 }
 
-
 type Answer struct {
 	Answer  string `json:"answer"`
 	URL     string `json:"url,omitempty"`
@@ -81,31 +80,47 @@ type Answer struct {
 	Engine  string `json:"engine,omitempty"`
 }
 
+// InfoboxAttribute — a key-value attribute in an infobox (API type).
+type InfoboxAttribute struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	URL   string `json:"url,omitempty"`
+}
+
+// InfoboxURL — a URL entry in an infobox (API type).
+type InfoboxURL struct {
+	Title string `json:"title"`
+	URL   string `json:"url"`
+}
+
 type Infobox struct {
-	Title       string   `json:"title"`
-	URL         string   `json:"url,omitempty"`
-	Content     string   `json:"content,omitempty"`
-	Engine      string   `json:"engine,omitempty"`
-	ImgSrc      string   `json:"img_src,omitempty"`
-	URLs        []string `json:"urls,omitempty"`
-	Attributes  []string `json:"attributes,omitempty"`
+	Title         string             `json:"title"`
+	URL           string             `json:"url,omitempty"`
+	Content       string             `json:"content,omitempty"`
+	Engine        string             `json:"engine,omitempty"`
+	Engines       []string           `json:"engines,omitempty"`
+	ImgSrc        string             `json:"img_src,omitempty"`
+	URLs          []InfoboxURL       `json:"urls,omitempty"`
+	Attributes    []InfoboxAttribute `json:"attributes,omitempty"`
+	RelatedTopics []string           `json:"related_topics,omitempty"`
 }
 
 type Result struct {
+	Kind         string         `json:"kind"`
+	Template     string         `json:"template,omitempty"`
 	Title        string         `json:"title"`
 	URL          string         `json:"url"`
-	Content      string         `json:"content"`
+	Content      string         `json:"content,omitempty"`
 	Engine       string         `json:"engine"`
 	Engines      []string       `json:"engines,omitempty"`
 	Category     Category       `json:"category"`
 	Score        float64        `json:"score"`
 	Positions    []int          `json:"-"`
-	Template     string         `json:"template,omitempty"`
 	ThumbnailURL string         `json:"thumbnail_url,omitempty"`
 	PublishedAt  *time.Time     `json:"published_at,omitempty"`
 	Domain       string         `json:"domain,omitempty"`
 	Favicon      string         `json:"favicon,omitempty"`
-	EngineData   map[string]any `json:"engine_data,omitempty"`
+	Extra        map[string]any `json:"extra,omitempty"`
 }
 
 type Response struct {

@@ -191,6 +191,21 @@ type EngineConfig struct {
 	APIKey     string                 `yaml:"api_key"`
 	Extra      map[string]interface{} `yaml:"extra"`
 	Enabled    bool                   `yaml:"enabled"`
+
+	// SearXNG-compatible fields
+	Paging               bool        `yaml:"paging"`
+	TimeRangeSupport     bool        `yaml:"time_range_support"`
+	LanguageSupport      bool        `yaml:"language_support"`
+	SafeSearch           bool        `yaml:"safesearch"`
+	DisplayErrorMessages bool        `yaml:"display_error_messages"`
+	EnableHTTP           bool        `yaml:"enable_http"`
+	Inactive             bool        `yaml:"inactive"`
+	Tokens               []string    `yaml:"tokens"`
+	Network              string      `yaml:"network"`
+	ShortCut             string      `yaml:"short_cut"`
+	SoftMaxRedirects     int         `yaml:"soft_max_redirects"`
+	NoResultForHTTPStatus []int      `yaml:"no_result_for_http_status"`
+	RaiseForHTTPError    interface{} `yaml:"raise_for_http_error"`
 }
 
 type UseDefaultSettings struct {
@@ -684,6 +699,15 @@ func (c *Config) Validate() error {
 
 		if eng.Weight < 0 {
 			return fmt.Errorf("engine[%d] (%s): weight must be >= 0, got %f", i, lookupName, eng.Weight)
+		}
+
+		// Check for empty tokens
+		if len(eng.Tokens) > 0 {
+			for j, tok := range eng.Tokens {
+				if tok == "" {
+					return fmt.Errorf("engine[%d] (%s): token[%d] is empty", i, lookupName, j)
+				}
+			}
 		}
 
 		for _, cat := range eng.Categories {

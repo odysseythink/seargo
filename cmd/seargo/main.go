@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -11,10 +12,12 @@ import (
 
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/internal/server"
+	"github.com/seargo/seargo/pkg/models"
 
 	// Import engines to trigger init() registration
 	_ "github.com/seargo/seargo/engines/bing"
@@ -24,6 +27,21 @@ import (
 	_ "github.com/seargo/seargo/engines/wikipedia"
 	_ "github.com/seargo/seargo/engines/yahoo"
 )
+
+func loadEngineTraits(path string) engine.EngineTraitsMap {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		logger.Warn("Engine traits file not found, continuing without traits", "path", path)
+		return nil
+	}
+	var traits engine.EngineTraitsMap
+	if err := json.Unmarshal(data, &traits); err != nil {
+		logger.Warn("Failed to parse engine traits, continuing without traits", "error", err)
+		return nil
+	}
+	logger.Info("Loaded engine traits", "engines", len(traits))
+	return traits
+}
 
 func main() {
 	configPath := flag.String("config", "configs/settings.yml", "Path to configuration file")
@@ -64,6 +82,51 @@ func main() {
 		cfg.Outgoing.UserAgent,
 		time.Duration(cfg.Outgoing.RequestTimeout)*time.Second,
 	)
+
+	// Load engine traits
+	traits := loadEngineTraits("data/engine_traits.json")
+
+	// Build EngineInitConfigs from config
+	initConfigs := make([]engine.EngineInitConfig, 0, len(cfg.Engines))
+	for _, ec := range cfg.Engines {
+		if ec.Disabled {
+			continue
+		}
+		cfgCategories := make([]models.Category, len(ec.Categories))
+		for i, c := range ec.Categories {
+			cfgCategories[i] = models.Category(c)
+		}
+		initConfigs = append(initConfigs, engine.EngineInitConfig{
+			Name:                ec.Name,
+			Shortcut:            ec.Shortcut,
+			Categories:          cfgCategories,
+			Timeout:             ec.Timeout,
+			Extra:               ec.Extra,
+			Paging:              ec.Paging,
+			TimeRangeSupport:    ec.TimeRangeSupport,
+			LanguageSupport:     ec.LanguageSupport,
+			SafeSearch:          ec.SafeSearch,
+			Weight:              ec.Weight,
+			DisplayErrorMsgs:    ec.DisplayErrorMessages,
+			EnableHTTP:          ec.EnableHTTP,
+			Inactive:            ec.Inactive,
+			Disabled:            ec.Disabled,
+			Tokens:              ec.Tokens,
+			Network:             ec.Network,
+			SoftMaxRedirects:    ec.SoftMaxRedirects,
+			NoResultForHTTPStatus: ec.NoResultForHTTPStatus,
+			RaiseForHTTPError:   ec.RaiseForHTTPError,
+		})
+	}
+
+	// Initialize engines via Loader
+	loader := engine.NewLoader(traits)
+	loadResult, err := loader.Load(context.Background(), initConfigs)
+	if err != nil {
+		logger.Error("Failed to load engines", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
 
 	// Init scheduler (handles engine registration internally)
 	sched, err := search.NewScheduler(cfg, c, httpClient)

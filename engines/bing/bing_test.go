@@ -1,6 +1,7 @@
 package bing
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 
 func TestBingEngine(t *testing.T) {
 	b := &Bing{}
-	err := b.Init(nil, engine.EngineInitConfig{})
-	assert.NoError(t, err)
+	ok := b.Init(context.Background(), engine.EngineInitConfig{})
+	assert.True(t, ok)
 	assert.Equal(t, "bing", b.Name())
 }

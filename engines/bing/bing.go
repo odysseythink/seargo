@@ -35,9 +35,19 @@ func (b *Bing) Capabilities() engine.Capabilities {
 	}
 }
 
-func (b *Bing) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
-	b.client = client
-	return nil
+func (b *Bing) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (b *Bing) Setup(cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (b *Bing) About() engine.EngineAbout {
+	return engine.EngineAbout{
+		Website:    "https://www.bing.com",
+		WikidataID: "Q182496",
+	}
 }
 
 func (b *Bing) Search(ctx context.Context, req *models.Request) (*models.Response, error) {

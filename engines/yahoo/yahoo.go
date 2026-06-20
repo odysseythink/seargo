@@ -35,9 +35,19 @@ func (y *Yahoo) Capabilities() engine.Capabilities {
 	}
 }
 
-func (y *Yahoo) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
-	y.client = client
-	return nil
+func (y *Yahoo) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (y *Yahoo) Setup(cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (y *Yahoo) About() engine.EngineAbout {
+	return engine.EngineAbout{
+		Website:    "https://search.yahoo.com",
+		WikidataID: "Q37081",
+	}
 }
 
 func (y *Yahoo) Search(ctx context.Context, req *models.Request) (*models.Response, error) {

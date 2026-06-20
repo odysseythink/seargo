@@ -1,6 +1,7 @@
 package google
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 
 func TestGoogleEngine(t *testing.T) {
 	g := &Google{}
-	err := g.Init(nil, engine.EngineInitConfig{})
-	assert.NoError(t, err)
+	ok := g.Init(context.Background(), engine.EngineInitConfig{})
+	assert.True(t, ok)
 	assert.Equal(t, "google", g.Name())
 }

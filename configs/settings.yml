@@ -95,36 +95,114 @@ engines:
     categories: [general]
     weight: 1.0
     timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
   - name: bing
     engine: bing
     shortcut: b
     categories: [general]
     weight: 0.8
     timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
   - name: duckduckgo
     engine: duckduckgo
     shortcut: ddg
     categories: [general]
     weight: 0.9
     timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
   - name: brave
     engine: brave
     shortcut: br
     categories: [general]
     weight: 0.8
     timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
   - name: wikipedia
     engine: wikipedia
     shortcut: wp
     categories: [general]
     weight: 0.6
     timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: false
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
   - name: yahoo
     engine: yahoo
     shortcut: y
     categories: [general]
     weight: 0.7
     timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
 
 doi_resolvers: {}
 default_doi_resolver: "oadoi.org"

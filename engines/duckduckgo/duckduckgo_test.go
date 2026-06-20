@@ -1,6 +1,7 @@
 package duckduckgo
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,8 +12,8 @@ import (
 
 func TestDuckDuckGoEngine(t *testing.T) {
 	ddg := &DuckDuckGo{}
-	err := ddg.Init(nil, engine.EngineInitConfig{})
-	assert.NoError(t, err)
+	ok := ddg.Init(context.Background(), engine.EngineInitConfig{})
+	assert.True(t, ok)
 	assert.Equal(t, "duckduckgo", ddg.Name())
 	assert.Contains(t, ddg.Categories(), models.CategoryGeneral)
 }

@@ -34,9 +34,19 @@ func (w *Wikipedia) Capabilities() engine.Capabilities {
 	}
 }
 
-func (w *Wikipedia) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
-	w.client = client
-	return nil
+func (w *Wikipedia) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (w *Wikipedia) Setup(cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (w *Wikipedia) About() engine.EngineAbout {
+	return engine.EngineAbout{
+		Website:    "https://en.wikipedia.org",
+		WikidataID: "Q52",
+	}
 }
 
 func (w *Wikipedia) Search(ctx context.Context, req *models.Request) (*models.Response, error) {

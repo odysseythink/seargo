@@ -14,7 +14,6 @@ import (
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
-	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/pkg/models"
@@ -137,7 +136,9 @@ type mockEngineForServer struct {
 func (m *mockEngineForServer) Name() string                       { return m.name }
 func (m *mockEngineForServer) Categories() []models.Category      { return m.categories }
 func (m *mockEngineForServer) Capabilities() engine.Capabilities  { return engine.Capabilities{} }
-func (m *mockEngineForServer) Init(client *httpx.Client, cfg engine.EngineInitConfig) error { return nil }
+func (m *mockEngineForServer) Init(ctx context.Context, cfg engine.EngineInitConfig) bool { return true }
+func (m *mockEngineForServer) Setup(cfg engine.EngineInitConfig) bool                    { return true }
+func (m *mockEngineForServer) About() engine.EngineAbout                                  { return engine.EngineAbout{} }
 func (m *mockEngineForServer) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
 	return &models.Response{}, nil
 }

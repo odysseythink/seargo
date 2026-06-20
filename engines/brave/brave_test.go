@@ -1,6 +1,7 @@
 package brave
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +11,7 @@ import (
 
 func TestBraveEngine(t *testing.T) {
 	b := &Brave{}
-	err := b.Init(nil, engine.EngineInitConfig{})
-	assert.NoError(t, err)
+	ok := b.Init(context.Background(), engine.EngineInitConfig{})
+	assert.True(t, ok)
 	assert.Equal(t, "brave", b.Name())
 }

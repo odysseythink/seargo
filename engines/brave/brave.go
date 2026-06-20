@@ -35,9 +35,19 @@ func (b *Brave) Capabilities() engine.Capabilities {
 	}
 }
 
-func (b *Brave) Init(client *httpx.Client, cfg engine.EngineInitConfig) error {
-	b.client = client
-	return nil
+func (b *Brave) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (b *Brave) Setup(cfg engine.EngineInitConfig) bool {
+	return true
+}
+
+func (b *Brave) About() engine.EngineAbout {
+	return engine.EngineAbout{
+		Website:    "https://search.brave.com/",
+		WikidataID: "Q55119031",
+	}
 }
 
 func (b *Brave) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
