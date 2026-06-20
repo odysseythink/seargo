@@ -508,3 +508,32 @@ func (c *TypedResultContainer) calculateScore(r *models.Result) {
 	score *= float64(len(r.Positions))
 	r.Score = score
 }
+
+// AddPluginResults adds results from plugin post_search hooks into the container.
+// Unlike Extend, these don't have an engine origin.
+func (c *TypedResultContainer) AddPluginResults(results []models.Result) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return
+	}
+	for i := range results {
+		r := results[i]
+		kind := r.Kind
+		if kind == "" {
+			kind = "main"
+		}
+		switch kind {
+		case "answer":
+			c.mergeAnswer("plugin", r, 0)
+		case "infobox":
+			c.mergeInfobox("plugin", r, 0)
+		case "suggestion":
+			c.mergeSuggestion(r)
+		case "correction":
+			c.mergeCorrection(r)
+		default:
+			c.mergeResult("plugin", kind, r, 0)
+		}
+	}
+}

@@ -129,7 +129,7 @@ func main() {
 	logger.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
 
 	// Init scheduler (handles engine registration internally)
-	sched, err := search.NewScheduler(cfg, c, httpClient)
+	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil)
 	if err != nil {
 		logger.Error("Failed to init scheduler", "error", err)
 		os.Exit(1)

@@ -12,16 +12,18 @@ import (
 
 	"github.com/panjf2000/ants/v2"
 
+	"github.com/seargo/seargo/internal/answerer"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/metrics"
+	"github.com/seargo/seargo/internal/plugin"
 	"github.com/seargo/seargo/internal/search/processor"
 	"github.com/seargo/seargo/internal/search/query"
 	"github.com/seargo/seargo/pkg/models"
-		"github.com/seargo/seargo/pkg/models/results"
+	"github.com/seargo/seargo/pkg/models/results"
 )
 
 type Scheduler struct {
@@ -37,6 +39,8 @@ type Scheduler struct {
 	defaultEngineTimeout time.Duration
 	suspension           *SuspensionTracker
 	categoriesAsTabs     map[string]config.CategoryTabConfig
+	pluginStorage        *plugin.PluginStorage
+	answererStorage      *answerer.AnswererStorage
 }
 
 // isEngineEnabled 判断引擎是否启用。Enabled 优先于 Disabled。
@@ -55,7 +59,7 @@ func engineKey(ec config.EngineConfig) string {
 	return ec.Name
 }
 
-func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client) (*Scheduler, error) {
+func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage) (*Scheduler, error) {
 	pool, err := ants.NewPool(50)
 	if err != nil {
 		return nil, err
@@ -127,6 +131,8 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client) (*Sch
 		defaultEngineTimeout: 8 * time.Second,
 		suspension:           suspension,
 		categoriesAsTabs:     cfg.CategoriesAsTabs,
+		pluginStorage:        pluginStorage,
+		answererStorage:      answererStorage,
 	}, nil
 }
 
@@ -171,6 +177,32 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 		}
 	}
 
+	// Build search context (used by hooks and processors)
+	searchCtx := s.buildSearchContext(parsed, req)
+
+	// Hook: pre_search â plugins can abort the search before engine execution.
+	if s.pluginStorage != nil {
+		if !s.pluginStorage.PreSearch(searchCtx) {
+			resp := &models.Response{
+				Query:   req.Query,
+				Results: []models.Result{},
+			}
+			if s.cache != nil {
+				s.cache.Set(s.cacheKey(parsed, req), resp, s.cacheTTL(req.Category))
+			}
+			return resp, nil
+		}
+	}
+
+	// Hook: answerer_ask â instant answers from answerer keywords.
+	var answererResults []models.Result
+	if s.answererStorage != nil {
+		actx := &answerer.AnswerContext{
+			Query: req.Query,
+		}
+		answererResults = s.answererStorage.Ask(actx)
+	}
+
 	// 4. Select processors
 	procs := s.selectProcessors(parsed, req.Category)
 	if len(procs) == 0 {
@@ -187,7 +219,17 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 
 	// 6. Execute processors (concurrent)
 	container := NewTypedResultContainer(s.engineWeights)
-	s.executeProcessors(ctx, procs, parsed, req.Page, container)
+	s.executeProcessors(ctx, procs, parsed, req.Page, container, searchCtx)
+
+	// Hook: post_search â plugins append additional results.
+	if s.pluginStorage != nil && searchCtx != nil {
+		pluginResults := s.pluginStorage.PostSearch(searchCtx)
+		container.AddPluginResults(answererResults)
+		container.AddPluginResults(pluginResults)
+	} else if len(answererResults) > 0 {
+		container.AddPluginResults(answererResults)
+	}
+
 	container.Close()
 
 	results := container.Results()
@@ -241,7 +283,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 }
 
 // executeProcessors 并发执行所有 processor，将结果写入 container。
-func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer) {
+func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer, searchCtx *plugin.SearchContext) {
 	var wg sync.WaitGroup
 
 	for _, p := range procs {
@@ -275,6 +317,16 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 				container.Extend(proc.Engine().Name(), apiResults, 0)
 			} else if len(result.Results) > 0 {
 				container.Extend(proc.Engine().Name(), result.Results, 0)
+			}
+			// Hook: on_result â filter results through plugins.
+			if s.pluginStorage != nil && searchCtx != nil {
+				filtered := result.Results[:0]
+				for i := range result.Results {
+					if s.pluginStorage.OnResult(searchCtx, &result.Results[i]) {
+						filtered = append(filtered, result.Results[i])
+					}
+				}
+				result.Results = filtered
 			}
 			if len(result.Suggestions) > 0 {
 				container.AddSuggestions(proc.Engine().Name(), result.Suggestions)
@@ -449,5 +501,21 @@ func (s *Scheduler) cacheTTL(cat models.Category) time.Duration {
 		return 2 * time.Minute
 	default:
 		return 30 * time.Second
+	}
+}
+
+// buildSearchContext creates a SearchContext from parsed query and request.
+func (s *Scheduler) buildSearchContext(parsed *query.ParsedQuery, req *models.Request) *plugin.SearchContext {
+	queryStr := strings.Join(parsed.Terms, " ")
+	if queryStr == "" {
+		queryStr = req.Query
+	}
+	return &plugin.SearchContext{
+		Query:      queryStr,
+		RawQuery:   req.Query,
+		Lang:       parsed.Lang,
+		SafeSearch: req.SafeSearch,
+		PageNo:     req.Page,
+		TimeRange:  req.TimeRange,
 	}
 }

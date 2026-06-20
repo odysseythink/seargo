@@ -144,7 +144,7 @@ func TestScheduler_ExternalBang(t *testing.T) {
 		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
 
-	s, err := NewScheduler(cfg, c, nil)
+	s, err := NewScheduler(cfg, c, nil, nil, nil)
 	require.NoError(t, err)
 
 	resp, err := s.Search(context.Background(), &models.Request{
