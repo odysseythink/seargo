@@ -20,7 +20,9 @@ type Config struct {
 	UI                 UIConfig                     `yaml:"ui"`
 	Preferences        PreferencesConfig            `yaml:"preferences"`
 	Valkey             ValkeyConfig                 `yaml:"valkey"`
+	PluginDir          string                       `yaml:"plugin_dir"`
 	Plugins            map[string]PluginConfig      `yaml:"plugins"`
+	Answerers          map[string]AnswererConfig    `yaml:"answerers"`
 	CategoriesAsTabs   map[string]CategoryTabConfig `yaml:"categories_as_tabs"`
 	Engines            []EngineConfig               `yaml:"engines"`
 	DOIRsolvers        map[string]string            `yaml:"doi_resolvers"`
@@ -176,6 +178,12 @@ type PluginConfig struct {
 	Extra  map[string]interface{} `yaml:",inline"`
 }
 
+// AnswererConfig controls an answerer's activation.
+type AnswererConfig struct {
+	Active bool                   `yaml:"active"`
+	Extra  map[string]interface{} `yaml:",inline"`
+}
+
 type CategoryTabConfig struct {
 	Engines []string `yaml:"engines"`
 }
@@ -311,6 +319,21 @@ func overlayDefaults(dst *Config, src *Config) {
 	// Valkey
 	if src.Valkey.URL != nil {
 		dst.Valkey.URL = src.Valkey.URL
+	}
+
+	// PluginDir
+	if src.PluginDir != "" {
+		dst.PluginDir = src.PluginDir
+	}
+
+	// Answerers — merge maps
+	if src.Answerers != nil {
+		if dst.Answerers == nil {
+			dst.Answerers = make(map[string]AnswererConfig)
+		}
+		for k, v := range src.Answerers {
+			dst.Answerers[k] = v
+		}
 	}
 
 	// Plugins — merge maps

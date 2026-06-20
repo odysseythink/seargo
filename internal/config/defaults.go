@@ -79,6 +79,7 @@ func builtInDefaults() Config {
 		},
 		Valkey:           ValkeyConfig{},
 		Plugins:          map[string]PluginConfig{},
+		Answerers:        map[string]AnswererConfig{},
 		CategoriesAsTabs: map[string]CategoryTabConfig{},
 		Engines:          []EngineConfig{},
 		DOIRsolvers:      map[string]string{},

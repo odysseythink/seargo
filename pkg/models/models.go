@@ -123,6 +123,37 @@ type Result struct {
 	Extra        map[string]any `json:"extra,omitempty"`
 }
 
+// FilterURLs calls fn for every URL field on the result.
+// fn receives (result, fieldName, currentURL) and returns (newURL, keep).
+// If keep is false, the field is set to "".
+// If keep is true, the field is set to newURL.
+func (r *Result) FilterURLs(fn func(r *Result, field string, url string) (string, bool)) {
+	if r.URL != "" {
+		newURL, keep := fn(r, "url", r.URL)
+		if keep {
+			r.URL = newURL
+		} else {
+			r.URL = ""
+		}
+	}
+	if r.ThumbnailURL != "" {
+		newURL, keep := fn(r, "thumbnail_url", r.ThumbnailURL)
+		if keep {
+			r.ThumbnailURL = newURL
+		} else {
+			r.ThumbnailURL = ""
+		}
+	}
+	if r.Favicon != "" {
+		newURL, keep := fn(r, "favicon", r.Favicon)
+		if keep {
+			r.Favicon = newURL
+		} else {
+			r.Favicon = ""
+		}
+	}
+}
+
 type Response struct {
 	Query          string         `json:"query"`
 	Category       Category       `json:"category"`
