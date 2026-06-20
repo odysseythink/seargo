@@ -110,7 +110,6 @@ var (
 		[]string{"network", "engine", "error_class"},
 	)
 
-	// Phase 4: SearXNG-aligned metrics
 	EngineReloadsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "seargo_engine_reloads_total",
@@ -135,6 +134,32 @@ var (
 		},
 		[]string{"engine"},
 	)
+
+	// Plugin metrics
+	PluginLoadTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_plugin_load_total",
+			Help: "Total number of plugin load attempts.",
+		},
+		[]string{"plugin", "status"},
+	)
+	PluginHookDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_plugin_hook_duration_seconds",
+			Help:    "Duration of plugin hook execution.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"plugin", "hook"},
+	)
+
+	// Answerer metrics
+	AnswererAskTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_answerer_ask_total",
+			Help: "Total number of answerer invocations.",
+		},
+		[]string{"answerer", "status"},
+	)
 )
 
 func init() {
@@ -154,4 +179,7 @@ func init() {
 	prometheus.MustRegister(EngineReloadsTotal)
 	prometheus.MustRegister(EngineParserFailures)
 	prometheus.MustRegister(EngineResults)
+	prometheus.MustRegister(PluginLoadTotal)
+	prometheus.MustRegister(PluginHookDuration)
+	prometheus.MustRegister(AnswererAskTotal)
 }

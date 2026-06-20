@@ -207,3 +207,31 @@ export interface SearchState {
   setQuery: (q: string) => void;
   search: (req: SearchRequest) => Promise<void>;
 }
+
+export interface PluginPrefItem {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  preference_section: "general" | "ui" | "privacy" | "query";
+  examples?: string[];
+}
+
+export interface AnswererPrefItem {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+  keywords: string[];
+  examples?: string[];
+}
+
+export interface PreferencesResponse {
+  plugins: PluginPrefItem[];
+  answerers: AnswererPrefItem[];
+}
+
+export interface PreferencesUpdate {
+  plugins: Record<string, boolean>;
+  answerers: Record<string, boolean>;
+}

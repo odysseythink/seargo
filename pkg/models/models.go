@@ -120,6 +120,7 @@ type Result struct {
 	PublishedAt  *time.Time     `json:"published_at,omitempty"`
 	Domain       string         `json:"domain,omitempty"`
 	Favicon      string         `json:"favicon,omitempty"`
+	IsOnion      bool           `json:"is_onion,omitempty"`
 	Extra        map[string]any `json:"extra,omitempty"`
 }
 

@@ -9,6 +9,7 @@ type SearchContext struct {
 	SafeSearch  int
 	PageNo      int
 	TimeRange   string
+	RemoteAddr  string
 	UserPlugins []string
 	Preferences map[string]any
 }
