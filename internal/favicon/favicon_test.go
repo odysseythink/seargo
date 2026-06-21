@@ -5,9 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/seargo/seargo/internal/security"
 	"github.com/seargo/seargo/internal/storage"
 )
 
@@ -173,5 +175,118 @@ func TestSearchFavicon_BlobTooBig(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("expected 2 resolver calls (blob not cached), got %d", calls)
+	}
+}
+
+func TestSignedURL_WithSigner(t *testing.T) {
+	signer := security.NewHMACSigner("test-secret")
+	kv := makeTestKV(t)
+	svc := New(testCfg, signer, kv)
+
+	signed, err := svc.SignedURL("testresolver", "example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(signed, "/favicon_proxy?") {
+		t.Fatalf("expected /favicon_proxy? prefix, got %q", signed)
+	}
+	if !strings.Contains(signed, "h=") {
+		t.Fatal("signed URL must have h= parameter")
+	}
+}
+
+func TestSignedURL_WithoutSigner(t *testing.T) {
+	kv := makeTestKV(t)
+	svc := New(testCfg, nil, kv)
+
+	signed, err := svc.SignedURL("testresolver", "example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(signed, "/favicon_proxy?") {
+		t.Fatalf("expected /favicon_proxy? prefix, got %q", signed)
+	}
+	if strings.Contains(signed, "h=") {
+		t.Fatal("unsigned URL should not have h= parameter")
+	}
+}
+
+func TestServe_ValidSignature(t *testing.T) {
+	signer := security.NewHMACSigner("test-secret")
+	kv := makeTestKV(t)
+	svc := New(testCfg, signer, kv)
+
+	Register("testServe", func(ctx context.Context, authority string) ([]byte, string, error) {
+		return []byte("FAVICON"), "image/png", nil
+	})
+
+	raw := fmt.Sprintf("%s::%s", "testServe", "example.org")
+	sig := signer.Sign([]byte(raw))
+
+	data, mime, err := svc.Serve(context.Background(), "testServe", "example.org", sig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "FAVICON" {
+		t.Fatalf("data: got %q, want %q", data, "FAVICON")
+	}
+	if mime != "image/png" {
+		t.Fatalf("mime: got %q, want %q", mime, "image/png")
+	}
+}
+
+func TestServe_InvalidSignature(t *testing.T) {
+	signer := security.NewHMACSigner("test-secret")
+	kv := makeTestKV(t)
+	svc := New(testCfg, signer, kv)
+
+	_, _, err := svc.Serve(context.Background(), "testresolver", "example.org", "badsig")
+	if err == nil {
+		t.Fatal("expected error for invalid signature")
+	}
+}
+
+func TestServe_MissingParams(t *testing.T) {
+	kv := makeTestKV(t)
+	svc := New(testCfg, nil, kv)
+
+	_, _, err := svc.Serve(context.Background(), "", "example.org", "")
+	if err == nil {
+		t.Fatal("expected error for missing resolver")
+	}
+
+	_, _, err = svc.Serve(context.Background(), "testresolver", "", "")
+	if err == nil {
+		t.Fatal("expected error for missing authority")
+	}
+}
+
+func TestRewriteFaviconURL(t *testing.T) {
+	svc := New(testCfg, nil, makeTestKV(t))
+
+	// Empty favicon → unchanged
+	if svc.RewriteFaviconURL("https://ex.com/page", "") != "" {
+		t.Fatal("empty favicon should return empty")
+	}
+
+	// Non-empty favicon returned as-is (rewriting is done by SignedURL in the handler)
+	result := svc.RewriteFaviconURL("https://ex.com/page", "https://ex.com/favicon.ico")
+	if result != "https://ex.com/favicon.ico" {
+		t.Fatalf("rewritten: got %q", result)
+	}
+}
+
+func TestInitResolvers(t *testing.T) {
+	InitResolvers()
+
+	for _, name := range []string{"allesedv", "duckduckgo", "google", "yandex"} {
+		fn, err := GetResolver(name)
+		if err != nil {
+			t.Fatalf("expected resolver %q to be registered after InitResolvers", name)
+		}
+		_, _, err = fn(context.Background(), "example.com")
+		if err == nil {
+			t.Fatalf("expected todo resolver %q to return error", name)
+		}
 	}
 }

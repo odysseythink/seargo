@@ -31,3 +31,19 @@ func GetResolver(name string) (ResolverFunc, error) {
 	}
 	return fn, nil
 }
+
+// todoResolver returns a resolver that signals the named resolver is not yet configured.
+func todoResolver(name string) ResolverFunc {
+	return func(ctx context.Context, authority string) ([]byte, string, error) {
+		return nil, "", fmt.Errorf("resolver %q not yet configured", name)
+	}
+}
+
+// InitResolvers registers placeholder resolvers for names defined in favicons.toml.
+// Real resolvers will be registered over these by wiring code in main.go.
+func InitResolvers() {
+	Register("allesedv", todoResolver("allesedv"))
+	Register("duckduckgo", todoResolver("duckduckgo"))
+	Register("google", todoResolver("google"))
+	Register("yandex", todoResolver("yandex"))
+}
