@@ -408,3 +408,95 @@ func TestEngineConfigValidation_TokenEmpty(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "token")
 }
+
+func TestTrustedProxiesDefault(t *testing.T) {
+	cfg := builtInDefaults()
+	if len(cfg.Server.TrustedProxies) != 2 {
+		t.Fatalf("expected 2 default trusted proxies, got %d", len(cfg.Server.TrustedProxies))
+	}
+	if cfg.Server.TrustedProxies[0] != "127.0.0.0/8" {
+		t.Fatalf("expected 127.0.0.0/8 as first trusted proxy, got %q", cfg.Server.TrustedProxies[0])
+	}
+	if cfg.Server.TrustedProxies[1] != "::1" {
+		t.Fatalf("expected ::1 as second trusted proxy, got %q", cfg.Server.TrustedProxies[1])
+	}
+}
+
+func TestLoadLimiterConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/limiter.toml"
+	content := `[ip_lists]
+block_ip = ["93.184.216.34"]
+pass_ip = ["8.8.8.8"]
+pass_searxng_org = true
+
+[ip_limit]
+filter_link_local = true
+link_token = false
+
+[windows]
+burst_duration = "20s"
+burst_max = 15
+long_duration = "10m"
+long_max = 150
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadLimiterConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.IPLists.BlockIP) != 1 || cfg.IPLists.BlockIP[0] != "93.184.216.34" {
+		t.Fatalf("block_ip: %v", cfg.IPLists.BlockIP)
+	}
+	if !cfg.IPLists.PassSearxngOrg {
+		t.Fatal("pass_searxng_org should be true")
+	}
+	if !cfg.IPLimit.FilterLinkLocal {
+		t.Fatal("filter_link_local should be true")
+	}
+	if cfg.Windows.BurstMax != 15 {
+		t.Fatalf("burst_max: got %d, want 15", cfg.Windows.BurstMax)
+	}
+}
+
+func TestLoadFaviconConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/favicons.toml"
+	content := `
+[proxy]
+max_age = "7d"
+resolver_timeout = "5s"
+favicon_path = "data/favicon.svg"
+favicon_mime_type = "image/svg+xml"
+
+[proxy.resolver_map]
+allesedv = "allesedv"
+duckduckgo = "duckduckgo"
+google = "google"
+yandex = "yandex"
+
+[cache]
+hold_time = "30d"
+blob_max_bytes = 20480
+`
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadFaviconConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Proxy.MaxAge != "7d" {
+		t.Fatalf("max_age: got %v, want 7d", cfg.Proxy.MaxAge)
+	}
+	if len(cfg.Proxy.ResolverMap) != 4 {
+		t.Fatalf("resolver_map: got %d entries, want 4", len(cfg.Proxy.ResolverMap))
+	}
+	if cfg.Cache.BlobMaxBytes != 20480 {
+		t.Fatalf("blob_max_bytes: got %d, want 20480", cfg.Cache.BlobMaxBytes)
+	}
+}

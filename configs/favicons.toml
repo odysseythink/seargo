@@ -1,0 +1,22 @@
+# SearGo favicon configuration
+
+[proxy]
+# Cache-Control max-age for proxy responses
+max_age = "7d"
+# Timeout for resolver upstream requests
+resolver_timeout = "5s"
+# Default empty favicon SVG (returned on miss/error)
+favicon_path = "data/favicon.svg"
+favicon_mime_type = "image/svg+xml"
+
+[proxy.resolver_map]
+allesedv = "allesedv"
+duckduckgo = "duckduckgo"
+google = "google"
+yandex = "yandex"
+
+[cache]
+# How long to hold cached favicon blobs
+hold_time = "30d"
+# Max blob size in bytes (larger blobs are not cached)
+blob_max_bytes = 20480

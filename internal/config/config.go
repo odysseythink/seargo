@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -105,6 +106,7 @@ type ServerConfig struct {
 	HTTPProtocolVersion string            `yaml:"http_protocol_version"`
 	Method              string            `yaml:"method"`
 	DefaultHTTPHeaders  map[string]string `yaml:"default_http_headers"`
+	TrustedProxies      []string          `yaml:"trusted_proxies"`
 }
 
 // OutgoingNetworkOverride 用于 outgoing.networks.<name> 配置覆盖。
@@ -585,6 +587,9 @@ func overlayServer(dst *ServerConfig, src *ServerConfig) {
 			dst.DefaultHTTPHeaders[k] = v
 		}
 	}
+	if len(src.TrustedProxies) > 0 {
+		dst.TrustedProxies = src.TrustedProxies
+	}
 }
 
 func overlayOutgoing(dst *OutgoingConfig, src *OutgoingConfig) {
@@ -921,5 +926,159 @@ func applyEnvOverrides(cfg *Config) {
 		if v := os.Getenv(envKey); v != "" {
 			cfg.Engines[i].APIKey = v
 		}
+	}
+}
+
+// -------- Limiter TOML config (configs/limiter.toml) --------
+
+// LimiterTOMLConfig mirrors configs/limiter.toml.
+type LimiterTOMLConfig struct {
+	IPLists  LimiterIPListsConfig  `toml:"ip_lists"`
+	IPLimit  LimiterIPLimitConfig  `toml:"ip_limit"`
+	Windows  LimiterWindowsConfig  `toml:"windows"`
+}
+
+type LimiterIPListsConfig struct {
+	BlockIP        []string `toml:"block_ip"`
+	PassIP         []string `toml:"pass_ip"`
+	PassSearxngOrg bool     `toml:"pass_searxng_org"`
+}
+
+type LimiterIPLimitConfig struct {
+	FilterLinkLocal bool `toml:"filter_link_local"`
+	LinkToken      bool `toml:"link_token"`
+}
+
+type LimiterWindowsConfig struct {
+	BurstDuration  string `toml:"burst_duration"`
+	BurstMax       int64  `toml:"burst_max"`
+	LongDuration   string `toml:"long_duration"`
+	LongMax        int64  `toml:"long_max"`
+}
+
+// LoadLimiterConfig loads a limiter.toml file and returns the parsed config.
+func LoadLimiterConfig(path string) (*LimiterTOMLConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return defaultLimiterConfig(), nil
+		}
+		return nil, fmt.Errorf("read limiter config: %w", err)
+	}
+	var cfg LimiterTOMLConfig
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse limiter config: %w", err)
+	}
+	applyLimiterDefaults(&cfg)
+	return &cfg, nil
+}
+
+func defaultLimiterConfig() *LimiterTOMLConfig {
+	return &LimiterTOMLConfig{
+		IPLimit: LimiterIPLimitConfig{
+			FilterLinkLocal: false,
+			LinkToken:       false,
+		},
+		Windows: LimiterWindowsConfig{
+			BurstDuration: "20s",
+			BurstMax:      15,
+			LongDuration:  "10m",
+			LongMax:       150,
+		},
+	}
+}
+
+func applyLimiterDefaults(cfg *LimiterTOMLConfig) {
+	if cfg.Windows.BurstDuration == "" {
+		cfg.Windows.BurstDuration = "20s"
+	}
+	if cfg.Windows.BurstMax == 0 {
+		cfg.Windows.BurstMax = 15
+	}
+	if cfg.Windows.LongDuration == "" {
+		cfg.Windows.LongDuration = "10m"
+	}
+	if cfg.Windows.LongMax == 0 {
+		cfg.Windows.LongMax = 150
+	}
+}
+
+// -------- Favicons TOML config (configs/favicons.toml) --------
+
+// FaviconTOMLConfig mirrors configs/favicons.toml.
+type FaviconTOMLConfig struct {
+	Proxy FaviconProxyTOMLConfig `toml:"proxy"`
+	Cache FaviconCacheTOMLConfig `toml:"cache"`
+}
+
+type FaviconProxyTOMLConfig struct {
+	MaxAge          string            `toml:"max_age"`
+	ResolverTimeout string            `toml:"resolver_timeout"`
+	FaviconPath     string            `toml:"favicon_path"`
+	FaviconMimeType string            `toml:"favicon_mime_type"`
+	ResolverMap     map[string]string `toml:"resolver_map"`
+}
+
+type FaviconCacheTOMLConfig struct {
+	HoldTime     string `toml:"hold_time"`
+	BlobMaxBytes int    `toml:"blob_max_bytes"`
+}
+
+// LoadFaviconConfig loads a favicons.toml file and returns the parsed config.
+func LoadFaviconConfig(path string) (*FaviconTOMLConfig, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return defaultFaviconConfig(), nil
+		}
+		return nil, fmt.Errorf("read favicon config: %w", err)
+	}
+	var cfg FaviconTOMLConfig
+	if err := toml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse favicon config: %w", err)
+	}
+	applyFaviconDefaults(&cfg)
+	return &cfg, nil
+}
+
+func defaultFaviconConfig() *FaviconTOMLConfig {
+	return &FaviconTOMLConfig{
+		Proxy: FaviconProxyTOMLConfig{
+			MaxAge:          "7d",
+			ResolverTimeout: "5s",
+			FaviconPath:     "data/favicon.svg",
+			FaviconMimeType: "image/svg+xml",
+			ResolverMap: map[string]string{
+				"allesedv":   "allesedv",
+				"duckduckgo": "duckduckgo",
+				"google":     "google",
+				"yandex":     "yandex",
+			},
+		},
+		Cache: FaviconCacheTOMLConfig{
+			HoldTime:     "30d",
+			BlobMaxBytes: 20480,
+		},
+	}
+}
+
+func applyFaviconDefaults(cfg *FaviconTOMLConfig) {
+	if cfg.Proxy.MaxAge == "" {
+		cfg.Proxy.MaxAge = "7d"
+	}
+	if cfg.Proxy.ResolverTimeout == "" {
+		cfg.Proxy.ResolverTimeout = "5s"
+	}
+	if cfg.Proxy.FaviconPath == "" {
+		cfg.Proxy.FaviconPath = "data/favicon.svg"
+	}
+	if cfg.Proxy.FaviconMimeType == "" {
+		cfg.Proxy.FaviconMimeType = "image/svg+xml"
+	}
+	if cfg.Cache.HoldTime == "" {
+		cfg.Cache.HoldTime = "30d"
+	}
+	if cfg.Cache.BlobMaxBytes == 0 {
+		cfg.Cache.BlobMaxBytes = 20480
 	}
 }

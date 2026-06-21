@@ -1,0 +1,25 @@
+# SearGo limiter configuration
+# See https://docs.searxng.org/admin/settings/settings_limiter.html
+
+[ip_lists]
+# Block these IPs (CIDR or single IP)
+block_ip = []
+# Always allow these IPs
+pass_ip = []
+# Allow requests from searx.space (public instance monitor)
+pass_searxng_org = false
+
+[ip_limit]
+# Filter link-local IPs (169.254.0.0/16, fe80::/10)
+filter_link_local = false
+# Enable link-token challenge for suspicious networks
+link_token = false
+
+[windows]
+# Burst window — short-term threshold
+burst_duration = "20s"
+burst_max = 15
+
+# Long window — sustained threshold
+long_duration = "10m"
+long_max = 150
