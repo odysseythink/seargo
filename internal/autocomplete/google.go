@@ -46,7 +46,7 @@ func (p *googleProvider) Fetch(ctx context.Context, query string, locale string)
 		return nil, nil
 	}
 
-	group, ok := data[0].([]interface{})
+	group, ok := data[1].([]interface{})
 	if !ok {
 		return nil, nil
 	}
