@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/seargo/seargo/internal/httpx"
+	"github.com/seargo/seargo/internal/storage"
 )
 
 const MinQueryLength = 2
@@ -21,7 +22,9 @@ func NewService(client *httpx.Client, cache *ResultCache) *Service {
 		panic("autocomplete.NewService: client must not be nil")
 	}
 	if cache == nil {
-		cache = NewResultCache(DefaultCacheTTL)
+		// Create a standalone in-memory cache for the fallback path.
+		kv, _ := storage.New(storage.Options{Backend: "memory", NumCounters: 1000, MaxCost: 1 << 20, BufferItems: 64})
+		cache = NewResultCache(kv.WithNamespace("autocomplete"), DefaultCacheTTL)
 	}
 	return &Service{client: client, cache: cache}
 }

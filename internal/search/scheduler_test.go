@@ -14,6 +14,7 @@ import (
 	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search/processor"
@@ -146,7 +147,9 @@ func TestPagination(t *testing.T) {
 }
 
 func TestScheduler_ExternalBangRedirect(t *testing.T) {
-	c, _ := cache.NewMultiLevel("")
+	kv, _ := storage.New(storage.Options{Backend: "memory", NumCounters: 1000, MaxCost: 1 << 20, BufferItems: 64})
+	defer kv.Close()
+	c, _ := cache.NewMultiLevel(kv, cache.Config{Enabled: true})
 	cfg := &config.Config{
 		Search:   config.SearchConfig{MaxResults: 10, SafeSearch: 1},
 		Engines:  []config.EngineConfig{},

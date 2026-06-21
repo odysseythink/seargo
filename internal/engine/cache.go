@@ -1,128 +1,58 @@
 package engine
 
 import (
-	"database/sql"
-	"fmt"
-	"sync"
+	"context"
 	"time"
 
-	_ "modernc.org/sqlite"
+	"github.com/seargo/seargo/internal/storage"
 )
 
-// EngineCache provides a per-engine key/value store backed by SQLite,
-// ported from SearXNG's EngineCache.
+// EngineCache provides a per-engine key/value store backed by storage.KV.
 type EngineCache struct {
-	mu sync.RWMutex
-	db *sql.DB
+	base storage.KV
 }
 
-// NewEngineCache opens or creates an SQLite database at the given path.
-func NewEngineCache(path string) (*EngineCache, error) {
-	db, err := sql.Open("sqlite", path)
-	if err != nil {
-		return nil, fmt.Errorf("open engine cache: %w", err)
-	}
-
-	db.SetMaxOpenConns(10)
-
-	if err := db.Ping(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("ping engine cache: %w", err)
-	}
-
-	if err := createTable(db); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("create cache table: %w", err)
-	}
-
-	return &EngineCache{db: db}, nil
+// NewEngineCache creates an EngineCache backed by a namespaced KV.
+func NewEngineCache(kv storage.KV) *EngineCache {
+	return &EngineCache{base: kv}
 }
 
-func createTable(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS engine_cache (
-			engine_name TEXT NOT NULL,
-			key TEXT NOT NULL,
-			value TEXT NOT NULL,
-			expires_at INTEGER NOT NULL,
-			PRIMARY KEY (engine_name, key)
-		)
-	`)
-	if err != nil {
-		return err
-	}
-
-	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_expires ON engine_cache(expires_at)`)
-	return err
+func (c *EngineCache) namespace(engineName string) storage.KV {
+	return c.base.WithNamespace(engineName)
 }
 
-// Set stores a value with a TTL in seconds.
+// Set stores a value with a TTL in seconds. ttl <= 0 means immediately expired (not stored).
 func (c *EngineCache) Set(engineName, key, value string, ttl int64) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	expiresAt := time.Now().Unix() + ttl
+	// ttl <= 0 means the old engine cache treated this as "immediately expired"
 	if ttl <= 0 {
-		expiresAt = 0
+		return nil
 	}
-
-	_, err := c.db.Exec(`
-		INSERT OR REPLACE INTO engine_cache (engine_name, key, value, expires_at)
-		VALUES (?, ?, ?, ?)
-	`, engineName, key, value, expiresAt)
-	return err
+	kv := c.namespace(engineName)
+	d := time.Duration(ttl) * time.Second
+	return kv.Set(context.Background(), key, []byte(value), d)
 }
 
 // Get retrieves a value. Returns (value, true) if found and not expired.
 func (c *EngineCache) Get(engineName, key string) (string, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var value string
-	var expiresAt int64
-	err := c.db.QueryRow(
-		`SELECT value, expires_at FROM engine_cache WHERE engine_name = ? AND key = ?`,
-		engineName, key,
-	).Scan(&value, &expiresAt)
-
-	if err == sql.ErrNoRows {
+	kv := c.namespace(engineName)
+	raw, ok, err := kv.Get(context.Background(), key)
+	if err != nil || !ok {
 		return "", false
 	}
-	if err != nil {
-		return "", false
-	}
-
-	if expiresAt == 0 || time.Now().Unix() >= expiresAt {
-		return "", false
-	}
-
-	return value, true
+	return string(raw), true
 }
 
 // Delete removes a key for an engine.
 func (c *EngineCache) Delete(engineName, key string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	_, err := c.db.Exec(
-		`DELETE FROM engine_cache WHERE engine_name = ? AND key = ?`,
-		engineName, key,
-	)
-	return err
+	return c.namespace(engineName).Delete(context.Background(), key)
 }
 
-// Close closes the database connection.
+// Close is a no-op (shared KV is owned by caller).
 func (c *EngineCache) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.db.Close()
+	return nil
 }
 
-// PurgeExpired removes all expired entries.
+// PurgeExpired is a no-op (handled by storage backend).
 func (c *EngineCache) PurgeExpired() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	_, err := c.db.Exec(`DELETE FROM engine_cache WHERE expires_at > 0 AND expires_at <= ?`, time.Now().Unix())
-	return err
+	return nil
 }

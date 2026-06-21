@@ -3,88 +3,152 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
-	"github.com/dgraph-io/ristretto"
-	"github.com/redis/go-redis/v9"
-
+	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/metrics"
+	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/pkg/models"
 )
 
-type MultiLevel struct {
-	local            *ristretto.Cache
-	remote           *redis.Client
-	defaultLocalTTL  time.Duration
-	defaultRemoteTTL time.Duration
+// Config holds search-result cache settings.
+type Config struct {
+	Enabled       bool
+	LocalTTL      int
+	RemoteTTL     int
+	TTLByCategory map[models.Category]int
 }
 
-func NewMultiLevel(redisAddr string) (*MultiLevel, error) {
-	localCache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1e7,
-		MaxCost:     1 << 28, // 256MB
+// MultiLevel is a two-level search result cache backed by storage.KV.
+type MultiLevel struct {
+	enabled   bool
+	l1        storage.KV // local (memory)
+	l2        storage.KV // shared (configured backend)
+	localTTL  time.Duration
+	remoteTTL time.Duration
+	ttlByCat  map[models.Category]time.Duration
+	namespace string
+}
+
+// NewMultiLevel creates a MultiLevel cache.
+// shared is the backend selected by storage.NewFromConfig; l1 is always a memory backend.
+func NewMultiLevel(shared storage.KV, cfg Config) (*MultiLevel, error) {
+	l1, err := storage.New(storage.Options{
+		Backend:     "memory",
+		NumCounters: 10_000_000,
+		MaxCost:     256 << 20,
 		BufferItems: 64,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create local cache: %w", err)
+		return nil, err
 	}
 
-	var rdb *redis.Client
-	if redisAddr != "" {
-		rdb = redis.NewClient(&redis.Options{
-			Addr: redisAddr,
-		})
+	if cfg.LocalTTL <= 0 {
+		cfg.LocalTTL = 30
+	}
+	if cfg.RemoteTTL <= 0 {
+		cfg.RemoteTTL = 300
+	}
+
+	ttlByCat := make(map[models.Category]time.Duration, len(cfg.TTLByCategory))
+	for cat, secs := range cfg.TTLByCategory {
+		if secs > 0 {
+			ttlByCat[cat] = time.Duration(secs) * time.Second
+		}
 	}
 
 	return &MultiLevel{
-		local:            localCache,
-		remote:           rdb,
-		defaultLocalTTL:  30 * time.Second,
-		defaultRemoteTTL: 5 * time.Minute,
+		enabled:   cfg.Enabled,
+		l1:        l1,
+		l2:        shared.WithNamespace("search"),
+		localTTL:  time.Duration(cfg.LocalTTL) * time.Second,
+		remoteTTL: time.Duration(cfg.RemoteTTL) * time.Second,
+		ttlByCat:  ttlByCat,
+		namespace: "search",
 	}, nil
 }
 
+func (m *MultiLevel) storageKey(key string) string {
+	return key
+}
+
+func (m *MultiLevel) ttlForCategory(cat models.Category) time.Duration {
+	if d, ok := m.ttlByCat[cat]; ok && d > 0 {
+		return d
+	}
+	return m.localTTL
+}
+
+// Get implements the Cache interface.
 func (m *MultiLevel) Get(key string) (*models.Response, bool) {
-	// L1: local cache
-	if val, ok := m.local.Get(key); ok {
-		if resp, ok := val.(*models.Response); ok {
+	if !m.enabled {
+		return nil, false
+	}
+	ctx := context.Background()
+
+	// L1: local
+	if raw, ok, err := m.l1.Get(ctx, m.storageKey(key)); err == nil && ok {
+		resp, err := unmarshalResponse(raw)
+		if err == nil {
 			metrics.CacheHits.WithLabelValues("local").Inc()
 			return resp, true
 		}
 	}
 
-	// L2: Redis
-	if m.remote != nil {
-		val, err := m.remote.Get(context.Background(), key).Result()
-		if err == nil {
-			var resp models.Response
-			if err := json.Unmarshal([]byte(val), &resp); err == nil {
-				m.local.SetWithTTL(key, &resp, 1, m.defaultLocalTTL)
-				metrics.CacheHits.WithLabelValues("remote").Inc()
-				return &resp, true
-			}
-		}
+	// L2: shared
+	raw, ok, err := m.l2.Get(ctx, m.storageKey(key))
+	if err != nil || !ok {
+		metrics.CacheMisses.WithLabelValues("all").Inc()
+		return nil, false
 	}
 
-	metrics.CacheMisses.WithLabelValues("all").Inc()
-	return nil, false
+	resp, err := unmarshalResponse(raw)
+	if err != nil {
+		metrics.CacheMisses.WithLabelValues("all").Inc()
+		return nil, false
+	}
+
+	// Promote to L1
+	_ = m.l1.Set(ctx, m.storageKey(key), raw, m.ttlForCategory(resp.Category))
+	metrics.CacheHits.WithLabelValues("remote").Inc()
+	return resp, true
 }
 
+// Set implements the Cache interface.
+// ttl <= 0 means use the category-based TTL.
 func (m *MultiLevel) Set(key string, value *models.Response, ttl time.Duration) {
-	m.local.SetWithTTL(key, value, 1, ttl)
-	m.local.Wait()
+	if !m.enabled {
+		return
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		logger.Warn("cache: marshal failed", "key", key, "error", err)
+		return
+	}
+	if ttl <= 0 {
+		ttl = m.ttlForCategory(value.Category)
+	}
 
-	if m.remote != nil {
-		if data, err := json.Marshal(value); err == nil {
-			m.remote.Set(context.Background(), key, data, ttl)
-		}
+	ctx := context.Background()
+	if err := m.l1.Set(ctx, m.storageKey(key), raw, ttl); err != nil {
+		logger.Warn("cache: L1 write failed", "key", key, "error", err)
+	}
+	if err := m.l2.Set(ctx, m.storageKey(key), raw, ttl); err != nil {
+		logger.Warn("cache: L2 write failed", "key", key, "error", err)
 	}
 }
 
+// Delete implements the Cache interface.
 func (m *MultiLevel) Delete(key string) {
-	m.local.Del(key)
-	if m.remote != nil {
-		m.remote.Del(context.Background(), key)
+	ctx := context.Background()
+	_ = m.l1.Delete(ctx, m.storageKey(key))
+	_ = m.l2.Delete(ctx, m.storageKey(key))
+}
+
+func unmarshalResponse(b []byte) (*models.Response, error) {
+	var r models.Response
+	if err := json.Unmarshal(b, &r); err != nil {
+		return nil, err
 	}
+	return &r, nil
 }

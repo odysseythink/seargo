@@ -14,6 +14,7 @@ import (
 	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/logger"
@@ -29,6 +30,17 @@ import (
 	_ "github.com/seargo/seargo/engines/wikipedia"
 	_ "github.com/seargo/seargo/engines/yahoo"
 )
+
+func convertTTLByCategory(raw map[string]int) map[models.Category]int {
+	if raw == nil {
+		return nil
+	}
+	out := make(map[models.Category]int, len(raw))
+	for k, v := range raw {
+		out[models.Category(k)] = v
+	}
+	return out
+}
 
 func loadEngineTraits(path string) engine.EngineTraitsMap {
 	data, err := os.ReadFile(path)
@@ -62,8 +74,21 @@ func main() {
 
 	logger.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
 
+	// Init shared storage
+	sharedStorage, err := storage.NewFromConfig(cfg)
+	if err != nil {
+		logger.Error("Failed to init shared storage", "error", err)
+		os.Exit(1)
+	}
+	defer sharedStorage.Close()
+
 	// Init cache
-	c, err := cache.NewMultiLevel(cfg.Cache.RedisAddr)
+	c, err := cache.NewMultiLevel(sharedStorage, cache.Config{
+		Enabled:       cfg.Cache.Enabled,
+		LocalTTL:      cfg.Cache.LocalTTL,
+		RemoteTTL:     cfg.Cache.RemoteTTL,
+		TTLByCategory: convertTTLByCategory(cfg.Cache.TTLByCategory),
+	})
 	if err != nil {
 		logger.Error("Failed to init cache", "error", err)
 		os.Exit(1)
@@ -138,7 +163,7 @@ func main() {
 	}
 
 	// Create autocomplete service and register providers
-	acCache := autocomplete.NewResultCache(autocomplete.DefaultCacheTTL)
+	acCache := autocomplete.NewResultCache(sharedStorage.WithNamespace("autocomplete"), autocomplete.DefaultCacheTTL)
 	defer acCache.Close()
 	acSvc := autocomplete.NewService(httpClient, acCache)
 	autocomplete.Register("google", autocomplete.NewGoogleProvider(httpClient))

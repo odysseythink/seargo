@@ -1,83 +1,50 @@
 package autocomplete
 
 import (
-	"sync"
+	"context"
+	"encoding/json"
 	"time"
+
+	"github.com/seargo/seargo/internal/storage"
 )
 
 const DefaultCacheTTL = 45 * time.Second
 
-type cacheEntry struct {
-	results   []string
-	expiresAt time.Time
-}
-
+// ResultCache provides a TTL-based cache for autocomplete suggestions, backed by storage.KV.
 type ResultCache struct {
-	mu    sync.RWMutex
-	items map[string]cacheEntry
-	ttl   time.Duration
-	stop  chan struct{}
-	once  sync.Once
+	kv  storage.KV
+	ttl time.Duration
 }
 
-func NewResultCache(ttl time.Duration) *ResultCache {
+// NewResultCache creates a ResultCache backed by a KV store.
+func NewResultCache(kv storage.KV, ttl time.Duration) *ResultCache {
 	if ttl <= 0 {
 		ttl = DefaultCacheTTL
 	}
-	c := &ResultCache{
-		items: make(map[string]cacheEntry),
-		ttl:   ttl,
-		stop:  make(chan struct{}),
-	}
-	go c.cleanupLoop(5 * time.Minute)
-	return c
+	return &ResultCache{kv: kv, ttl: ttl}
 }
 
+// Get retrieves cached results for a key.
 func (c *ResultCache) Get(key string) ([]string, bool) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	entry, ok := c.items[key]
-	if !ok || time.Now().After(entry.expiresAt) {
+	raw, ok, err := c.kv.Get(context.Background(), key)
+	if err != nil || !ok {
 		return nil, false
 	}
-	return entry.results, true
+	var results []string
+	if err := json.Unmarshal(raw, &results); err != nil {
+		return nil, false
+	}
+	return results, true
 }
 
+// Set stores results for a key with the configured TTL.
 func (c *ResultCache) Set(key string, results []string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.items[key] = cacheEntry{
-		results:   results,
-		expiresAt: time.Now().Add(c.ttl),
+	raw, err := json.Marshal(results)
+	if err != nil {
+		return
 	}
+	_ = c.kv.Set(context.Background(), key, raw, c.ttl)
 }
 
-func (c *ResultCache) Close() {
-	c.once.Do(func() {
-		close(c.stop)
-	})
-}
-
-func (c *ResultCache) cleanupLoop(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.stop:
-			return
-		case <-ticker.C:
-			c.evictExpired()
-		}
-	}
-}
-
-func (c *ResultCache) evictExpired() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	now := time.Now()
-	for k, v := range c.items {
-		if now.After(v.expiresAt) {
-			delete(c.items, k)
-		}
-	}
-}
+// Close is a no-op. The shared KV is owned by the caller.
+func (c *ResultCache) Close() {}

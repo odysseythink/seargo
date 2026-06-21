@@ -18,6 +18,7 @@ func (s *stubProvider) Fetch(_ context.Context, _ string, _ string) ([]string, e
 	return s.results, s.err
 }
 
+
 func TestRegisterDuplicatePanics(t *testing.T) {
 	Reset()
 	Register("test", &stubProvider{})
@@ -60,7 +61,7 @@ func TestRegisterGetAllNames(t *testing.T) {
 }
 
 func TestCacheSetGetExpiry(t *testing.T) {
-	c := NewResultCache(100 * time.Millisecond)
+	c := NewResultCache(makeTestKV(t).WithNamespace("autocomplete"), 100 * time.Millisecond)
 	defer c.Close()
 
 	c.Set("k1", []string{"a", "b"})
@@ -84,7 +85,7 @@ func TestCacheSetGetExpiry(t *testing.T) {
 func TestServiceUnknownBackend(t *testing.T) {
 	Reset()
 	client := newHttpxTestClient()
-	svc := NewService(client, NewResultCache(10*time.Second))
+	svc := NewService(client, NewResultCache(makeTestKV(t).WithNamespace("autocomplete"), 10*time.Second))
 	defer svc.Cache().Close()
 
 	result := svc.Suggest(context.Background(), "nonexistent", "test", "en-US")
@@ -97,7 +98,7 @@ func TestServiceShortQuery(t *testing.T) {
 	Reset()
 	Register("test", &stubProvider{results: []string{"should not appear"}})
 	client := newHttpxTestClient()
-	svc := NewService(client, NewResultCache(10*time.Second))
+	svc := NewService(client, NewResultCache(makeTestKV(t).WithNamespace("autocomplete"), 10*time.Second))
 	defer svc.Cache().Close()
 
 	result := svc.Suggest(context.Background(), "test", "x", "en-US")
@@ -110,7 +111,7 @@ func TestServicePanicRecovery(t *testing.T) {
 	Reset()
 	Register("panic", &stubProvider{})
 	client := newHttpxTestClient()
-	svc := NewService(client, NewResultCache(10*time.Second))
+	svc := NewService(client, NewResultCache(makeTestKV(t).WithNamespace("autocomplete"), 10*time.Second))
 	defer svc.Cache().Close()
 
 	// Override the provider to make it panic
@@ -170,7 +171,7 @@ func TestLocaleHelpers(t *testing.T) {
 }
 
 func TestCacheClose(t *testing.T) {
-	c := NewResultCache(time.Second)
+	c := NewResultCache(makeTestKV(t).WithNamespace("autocomplete"), time.Second)
 	c.Close()
 	// Closing twice should not panic
 	c.Close()

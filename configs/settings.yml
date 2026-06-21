@@ -210,5 +210,7 @@ default_doi_resolver: "oadoi.org"
 cache:
   enabled: true
   local_ttl: 30
-  redis_ttl: 300
-  redis_addr: "localhost:6379"
+  remote_ttl: 300
+
+storage:
+  backend: "memory"

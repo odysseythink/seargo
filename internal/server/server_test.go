@@ -13,6 +13,7 @@ import (
 
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search"
@@ -30,7 +31,7 @@ func TestHealthEndpoint(t *testing.T) {
 		Server: config.ServerConfig{Port: 8080, BindAddress: "0.0.0.0"},
 		Search: config.SearchConfig{DefaultLang: "zh-CN"},
 	}
-	c, _ := cache.NewMultiLevel("")
+	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
 	srv := New(cfg, sched, nil, nil, nil)
@@ -57,7 +58,7 @@ func TestCategoriesEndpoint(t *testing.T) {
 		},
 		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
-	c, _ := cache.NewMultiLevel("")
+	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
 	srv := New(cfg, sched, nil, nil, nil)
@@ -104,7 +105,7 @@ func TestConfigEndpoint(t *testing.T) {
 			{Name: "google", Engine: "google", APIKey: "secret-api-key"},
 		},
 	}
-	c, _ := cache.NewMultiLevel("")
+	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
 	srv := New(cfg, sched, nil, nil, nil)
@@ -155,7 +156,7 @@ func TestEnginesEndpoint(t *testing.T) {
 	}
 	mockEngine := &mockEngineForServer{name: "google", categories: []models.Category{models.CategoryGeneral}}
 	engine.Register("google", mockEngine)
-	c, _ := cache.NewMultiLevel("")
+	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
 	srv := New(cfg, sched, nil, nil, nil)
@@ -169,3 +170,18 @@ func TestEnginesEndpoint(t *testing.T) {
 	assert.Contains(t, body, `"enabled":true`)
 	assert.NotContains(t, body, `"name":"bing"`)
 }
+
+func makeTestCache(t *testing.T) cache.Cache {
+	t.Helper()
+	kv, err := storage.New(storage.Options{Backend: "memory", NumCounters: 1000, MaxCost: 1 << 20, BufferItems: 64})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { kv.Close() })
+	c, err := cache.NewMultiLevel(kv, cache.Config{Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
+}
+

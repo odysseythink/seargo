@@ -174,7 +174,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 				RedirectURL: *redirectURL,
 			}
 			if s.cache != nil {
-				s.cache.Set(s.cacheKey(parsed, req), resp, s.cacheTTL(req.Category))
+				s.cache.Set(s.cacheKey(parsed, req), resp, 0)
 			}
 			return resp, nil
 		}
@@ -191,7 +191,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 				Results: []models.Result{},
 			}
 			if s.cache != nil {
-				s.cache.Set(s.cacheKey(parsed, req), resp, s.cacheTTL(req.Category))
+				s.cache.Set(s.cacheKey(parsed, req), resp, 0)
 			}
 			return resp, nil
 		}
@@ -279,7 +279,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 
 	// 11. Write cache
 	if s.cache != nil {
-		s.cache.Set(s.cacheKey(parsed, req), response, s.cacheTTL(req.Category))
+		s.cache.Set(s.cacheKey(parsed, req), response, 0)
 	}
 
 	return response, nil
@@ -472,20 +472,6 @@ func paginate(results []models.Result, page, pageSize int) ([]models.Result, int
 
 	return results[start:end], total
 }
-
-func (s *Scheduler) cacheTTL(cat models.Category) time.Duration {
-	switch cat {
-	case models.CategoryImages:
-		return 2 * time.Minute
-	case models.CategoryNews:
-		return 15 * time.Second
-	case models.CategoryVideos:
-		return 2 * time.Minute
-	default:
-		return 30 * time.Second
-	}
-}
-
 // buildSearchContext creates a SearchContext from parsed query and request.
 func (s *Scheduler) buildSearchContext(parsed *query.ParsedQuery, req *models.Request) *plugin.SearchContext {
 	queryStr := strings.Join(parsed.Terms, " ")

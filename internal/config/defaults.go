@@ -78,6 +78,7 @@ func builtInDefaults() Config {
 			Lock: []string{},
 		},
 		Valkey:           ValkeyConfig{},
+		Storage:          StorageConfig{Backend: "memory"},
 		Plugins:          map[string]PluginConfig{},
 		Answerers:        map[string]AnswererConfig{},
 		CategoriesAsTabs: map[string]CategoryTabConfig{},

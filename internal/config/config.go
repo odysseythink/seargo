@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -29,6 +30,7 @@ type Config struct {
 	DefaultDOIResolver string                       `yaml:"default_doi_resolver"`
 	UseDefaultSettings *UseDefaultSettings          `yaml:"use_default_settings"`
 	Cache              CacheConfig                  `yaml:"cache"`
+	Storage            StorageConfig                `yaml:"storage"`
 }
 
 // -------- Blocks --------
@@ -227,10 +229,31 @@ type UseDefaultSettingsEngines struct {
 }
 
 type CacheConfig struct {
-	Enabled   bool   `yaml:"enabled"`
-	LocalTTL  int    `yaml:"local_ttl"`
-	RedisTTL  int    `yaml:"redis_ttl"`
-	RedisAddr string `yaml:"redis_addr"`
+	Enabled       bool              `yaml:"enabled"`
+	LocalTTL      int               `yaml:"local_ttl"`
+	RemoteTTL     int               `yaml:"remote_ttl"`
+	TTLByCategory map[string]int    `yaml:"ttl_by_category"`
+}
+
+// StorageConfig configures the shared storage backend.
+type StorageConfig struct {
+	Backend       string              `yaml:"backend"`
+	ValkeyURL     string              `yaml:"valkey_url"`
+	SQLite        SQLiteStorageConfig `yaml:"sqlite"`
+	Memory        MemoryStorageConfig `yaml:"memory"`
+	MaxValueLen   int                 `yaml:"max_value_len"`
+	KeyHashSecret string              `yaml:"key_hash_secret"`
+}
+
+type SQLiteStorageConfig struct {
+	Path        string `yaml:"path"`
+	Maintenance int    `yaml:"maintenance_seconds"`
+}
+
+type MemoryStorageConfig struct {
+	NumCounters int64 `yaml:"num_counters"`
+	MaxCost     int64 `yaml:"max_cost"`
+	BufferItems int64 `yaml:"buffer_items"`
 }
 
 var validCategories = map[string]bool{
@@ -389,11 +412,40 @@ func overlayDefaults(dst *Config, src *Config) {
 	if src.Cache.LocalTTL > 0 {
 		dst.Cache.LocalTTL = src.Cache.LocalTTL
 	}
-	if src.Cache.RedisTTL > 0 {
-		dst.Cache.RedisTTL = src.Cache.RedisTTL
+	if src.Cache.RemoteTTL > 0 {
+		dst.Cache.RemoteTTL = src.Cache.RemoteTTL
 	}
-	if src.Cache.RedisAddr != "" {
-		dst.Cache.RedisAddr = src.Cache.RedisAddr
+	if src.Cache.TTLByCategory != nil {
+		dst.Cache.TTLByCategory = src.Cache.TTLByCategory
+	}
+
+	// Storage
+	if src.Storage.Backend != "" {
+		dst.Storage.Backend = src.Storage.Backend
+	}
+	if src.Storage.ValkeyURL != "" {
+		dst.Storage.ValkeyURL = src.Storage.ValkeyURL
+	}
+	if src.Storage.SQLite.Path != "" {
+		dst.Storage.SQLite.Path = src.Storage.SQLite.Path
+	}
+	if src.Storage.SQLite.Maintenance > 0 {
+		dst.Storage.SQLite.Maintenance = src.Storage.SQLite.Maintenance
+	}
+	if src.Storage.Memory.NumCounters > 0 {
+		dst.Storage.Memory.NumCounters = src.Storage.Memory.NumCounters
+	}
+	if src.Storage.Memory.MaxCost > 0 {
+		dst.Storage.Memory.MaxCost = src.Storage.Memory.MaxCost
+	}
+	if src.Storage.Memory.BufferItems > 0 {
+		dst.Storage.Memory.BufferItems = src.Storage.Memory.BufferItems
+	}
+	if src.Storage.MaxValueLen > 0 {
+		dst.Storage.MaxValueLen = src.Storage.MaxValueLen
+	}
+	if src.Storage.KeyHashSecret != "" {
+		dst.Storage.KeyHashSecret = src.Storage.KeyHashSecret
 	}
 }
 
@@ -755,8 +807,87 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Storage
+	backend := c.StorageBackend()
+	switch backend {
+	case "memory", "sqlite", "valkey":
+		// valid
+	default:
+		return fmt.Errorf("storage.backend must be one of memory, sqlite, valkey, got %q", backend)
+	}
+	if backend == "valkey" && c.Storage.ValkeyURL == "" {
+		return fmt.Errorf("storage.valkey_url is required when backend is valkey")
+	}
+
 	return nil
 }
+
+// StorageBackend returns the configured storage backend type.
+func (c *Config) StorageBackend() string {
+	if c.Storage.Backend == "" {
+		return "memory"
+	}
+	return c.Storage.Backend
+}
+
+// StorageValkeyURL returns the Valkey/Redis URL.
+func (c *Config) StorageValkeyURL() string {
+	return c.Storage.ValkeyURL
+}
+
+// StorageSQLitePath returns the SQLite database path.
+func (c *Config) StorageSQLitePath() string {
+	if c.Storage.SQLite.Path == "" {
+		return "data/seargo.db"
+	}
+	return c.Storage.SQLite.Path
+}
+
+// StorageMaxValueLen returns the maximum value length in bytes.
+func (c *Config) StorageMaxValueLen() int {
+	if c.Storage.MaxValueLen <= 0 {
+		return 10240
+	}
+	return c.Storage.MaxValueLen
+}
+
+// StorageKeyHashSecret returns the HMAC key hash secret.
+func (c *Config) StorageKeyHashSecret() string {
+	return c.Storage.KeyHashSecret
+}
+
+// StorageMaintenance returns the maintenance interval.
+func (c *Config) StorageMaintenance() time.Duration {
+	if c.Storage.SQLite.Maintenance <= 0 {
+		return time.Hour
+	}
+	return time.Duration(c.Storage.SQLite.Maintenance) * time.Second
+}
+
+// StorageNumCounters returns the ristretto NumCounters.
+func (c *Config) StorageNumCounters() int64 {
+	if c.Storage.Memory.NumCounters <= 0 {
+		return 10_000_000
+	}
+	return c.Storage.Memory.NumCounters
+}
+
+// StorageMaxCost returns the ristretto MaxCost.
+func (c *Config) StorageMaxCost() int64 {
+	if c.Storage.Memory.MaxCost <= 0 {
+		return 256 << 20
+	}
+	return c.Storage.Memory.MaxCost
+}
+
+// StorageBufferItems returns the ristretto BufferItems.
+func (c *Config) StorageBufferItems() int64 {
+	if c.Storage.Memory.BufferItems <= 0 {
+		return 64
+	}
+	return c.Storage.Memory.BufferItems
+}
+
 
 // -------- Env overrides --------
 
@@ -782,8 +913,8 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Valkey.URL = &v
 	}
 	// Legacy env vars
-	if v := os.Getenv("SEARGO_CACHE_REDIS_ADDR"); v != "" {
-		cfg.Cache.RedisAddr = v
+	if v := os.Getenv("SEARGO_VALKEY_URL"); v != "" {
+		cfg.Storage.ValkeyURL = v
 	}
 	for i := range cfg.Engines {
 		envKey := fmt.Sprintf("SEARGO_ENGINE_%s_API_KEY", strings.ToUpper(cfg.Engines[i].Name))
