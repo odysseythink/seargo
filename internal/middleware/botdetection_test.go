@@ -26,6 +26,10 @@ func TestBotDetection_Allow(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/test", nil)
 	req.RemoteAddr = "127.0.0.1:12345"
 	req.Header.Set("User-Agent", "Mozilla/5.0")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9")
+	req.Header.Set("Accept-Encoding", "gzip, deflate")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Connection", "keep-alive")
 	r.ServeHTTP(w, req)
 
 	if w.Code != 200 {
