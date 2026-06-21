@@ -33,6 +33,11 @@ func NewDetector(cfg *Config, state State) *Detector {
 	probes := []Probe{
 		&ipListProbe{},
 		newUserAgentProbe(patterns),
+		&acceptProbe{},
+		&acceptEncodingProbe{},
+		&acceptLanguageProbe{},
+		&connectionProbe{},
+		&secFetchProbe{},
 	}
 	if state != nil {
 		probes = append(probes, newLinkTokenProbe(state))
