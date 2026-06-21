@@ -11,6 +11,7 @@ import (
 
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/pkg/models"
 	"github.com/seargo/seargo/web"
 )
@@ -22,14 +23,20 @@ func (s *Server) setupRoutes() {
 		api.GET("/engines", s.handleEngines)
 		api.GET("/categories", s.handleCategories)
 		api.GET("/config", s.handleConfig)
-			api.GET("/preferences", s.handleGetPreferences)
-			api.PUT("/preferences", s.handlePutPreferences)
+		api.GET("/preferences", s.handleGetPreferences)
+		api.PUT("/preferences", s.handlePutPreferences)
 		api.GET("/autocomplete", s.handleAutocomplete)
 		api.GET("/opensearch.xml", s.handleOpenSearch)
 	}
 
 	s.router.GET("/health", s.handleHealth)
 	s.router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	s.router.GET("/robots.txt", middleware.HandleRobotsTxt)
+
+	// Phase 8 proxy + anti-abuse endpoints
+	s.router.GET("/image_proxy", s.handleImageProxy)
+	s.router.GET("/favicon_proxy", s.handleFaviconProxy)
+	s.router.GET("/link_token", s.handleLinkToken)
 
 	// Static files (React frontend)
 	dist, err := fs.Sub(web.Dist, "dist")
@@ -63,6 +70,51 @@ func (s *Server) handleSearch(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Phase 8: rewrite image URLs through proxy
+	if s.config.Server.ImageProxy && s.imageProxy != nil {
+		for i := range resp.Results {
+			r := &resp.Results[i]
+			// Rewrite ThumbnailURL for all result types
+			if r.ThumbnailURL != "" {
+				if proxyURL, err := s.imageProxy.SignedURL(r.ThumbnailURL); err == nil {
+					r.ThumbnailURL = proxyURL
+				}
+			}
+			// Rewrite type-specific URLs stored in Extra
+			if r.Extra != nil {
+				if src, ok := r.Extra["img_src"]; ok {
+					if str, ok := src.(string); ok && str != "" {
+						if proxyURL, err := s.imageProxy.SignedURL(str); err == nil {
+							r.Extra["img_src"] = proxyURL
+						}
+					}
+				}
+				if src, ok := r.Extra["thumbnail_src"]; ok {
+					if str, ok := src.(string); ok && str != "" {
+						if proxyURL, err := s.imageProxy.SignedURL(str); err == nil {
+							r.Extra["thumbnail_src"] = proxyURL
+						}
+					}
+				}
+				if src, ok := r.Extra["thumbnail"]; ok {
+					if str, ok := src.(string); ok && str != "" {
+						if proxyURL, err := s.imageProxy.SignedURL(str); err == nil {
+							r.Extra["thumbnail"] = proxyURL
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Phase 8: rewrite favicon URLs through favicon proxy
+	if s.config.Search.FaviconResolver != "" && s.favSvc != nil {
+		for i := range resp.Results {
+			r := &resp.Results[i]
+			r.Favicon = s.favSvc.RewriteFaviconURL(r.URL, r.Favicon)
+		}
 	}
 
 	c.JSON(http.StatusOK, resp)
@@ -238,4 +290,53 @@ func (s *Server) handleHealth(c *gin.Context) {
 		"status":    "ok",
 		"timestamp": time.Now().Unix(),
 	})
+}
+
+func (s *Server) handleImageProxy(c *gin.Context) {
+	rawURL := c.Query("url")
+	signature := c.Query("h")
+	if s.imageProxy == nil {
+		c.JSON(400, gin.H{"error": "image proxy not configured"})
+		return
+	}
+	if err := s.imageProxy.Serve(c.Request.Context(), rawURL, signature, c.Writer); err != nil {
+		return
+	}
+}
+
+func (s *Server) handleFaviconProxy(c *gin.Context) {
+	resolver := c.Query("resolver")
+	authority := c.Query("authority")
+	signature := c.Query("h")
+	if s.favSvc == nil {
+		c.JSON(400, gin.H{"error": "favicon proxy not configured"})
+		return
+	}
+	data, mime, err := s.favSvc.Serve(c.Request.Context(), resolver, authority, signature)
+	if err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+	if data == nil {
+		c.Header("Content-Type", "image/svg+xml")
+		c.Header("Cache-Control", "public, max-age=86400")
+		c.String(200, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"></svg>`)
+		return
+	}
+	c.Header("Content-Type", mime)
+	c.Header("Cache-Control", "public, max-age=86400")
+	c.Writer.Write(data)
+}
+
+func (s *Server) handleLinkToken(c *gin.Context) {
+	if s.limiterSvc == nil {
+		c.JSON(503, gin.H{"error": "limiter not configured"})
+		return
+	}
+	token, err := s.limiterSvc.Token(c.Request.Context())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"token": token})
 }

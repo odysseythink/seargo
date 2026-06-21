@@ -5,6 +5,19 @@ import (
 	"net/http"
 )
 
+// DefaultUARegexps are the default UA regex patterns used when none are configured.
+var DefaultUARegexps = []string{
+	`^$`,
+	`(?i)curl/`,
+	`(?i)wget/`,
+	`(?i)python-requests/`,
+	`(?i)scrapy`,
+	`(?i)\bbot\b`,
+	`(?i)\bcrawler\b`,
+	`(?i)\bspider\b`,
+	`(?i)\bheadless\b`,
+}
+
 // Detector runs the full probe set against a request.
 type Detector struct {
 	cfg    *Config
@@ -13,9 +26,13 @@ type Detector struct {
 
 // NewDetector creates a Detector with all probes.
 func NewDetector(cfg *Config, state State) *Detector {
+	patterns := cfg.UserAgentPatterns
+	if len(patterns) == 0 {
+		patterns = DefaultUARegexps
+	}
 	probes := []Probe{
 		&ipListProbe{},
-		newUserAgentProbe(cfg.UserAgentPatterns),
+		newUserAgentProbe(patterns),
 	}
 	if state != nil {
 		probes = append(probes, newLinkTokenProbe(state))

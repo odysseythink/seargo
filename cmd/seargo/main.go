@@ -12,14 +12,20 @@ import (
 
 	"github.com/seargo/seargo/internal/autocomplete"
 	"github.com/seargo/seargo/internal/bangs"
+	"github.com/seargo/seargo/internal/botdetection"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
-	"github.com/seargo/seargo/internal/storage"
-	"github.com/seargo/seargo/internal/engine"
-	"github.com/seargo/seargo/internal/httpx"
+	"github.com/seargo/seargo/internal/favicon"
+	"github.com/seargo/seargo/internal/imageproxy"
+	"github.com/seargo/seargo/internal/limiter"
 	"github.com/seargo/seargo/internal/logger"
+	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/search"
+	"github.com/seargo/seargo/internal/security"
 	"github.com/seargo/seargo/internal/server"
+	"github.com/seargo/seargo/internal/storage"
+	"github.com/seargo/seargo/internal/httpx"
+	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/pkg/models"
 
 	// Import engines to trigger init() registration
@@ -185,6 +191,46 @@ func main() {
 	autocomplete.Register("privacywall", autocomplete.NewPrivacyWallProvider(httpClient))
 	autocomplete.Register("quark", autocomplete.NewQuarkProvider(httpClient))
 
+	// Phase 8: Validate secret key before anything else
+	if err := middleware.ValidateSecretKey(cfg); err != nil {
+		logger.Error("Secret key validation failed", "error", err)
+		os.Exit(1)
+	}
+
+	// Phase 8: Init bot detection
+	bdCfg, err := botdetection.LoadConfig("configs/limiter.toml")
+	if err != nil {
+		logger.Error("Failed to load bot detection config", "error", err)
+		os.Exit(1)
+	}
+
+	// Phase 8: Init limiter
+	limCfg, err := limiter.LoadConfig("configs/limiter.toml")
+	if err != nil {
+		logger.Error("Failed to load limiter config", "error", err)
+		os.Exit(1)
+	}
+	limiterSvc := limiter.New(limCfg, sharedStorage.WithNamespace("limiter"))
+
+	// Phase 8: Init bot detector (limiterSvc implements botdetection.State)
+	botDetector := botdetection.NewDetector(bdCfg, limiterSvc)
+
+	// Phase 8: Init HMAC signer for proxies
+	hmacSigner := security.NewHMACSigner(cfg.Server.SecretKey)
+
+	// Phase 8: Init image proxy (nil client → http.DefaultClient)
+	imageProxySvc := imageproxy.New(imageproxy.Config{
+		Enabled: cfg.Server.ImageProxy,
+	}, hmacSigner, nil)
+
+	// Phase 8: Init favicon service
+	favCfg, err := favicon.LoadConfig("configs/favicons.toml")
+	if err != nil {
+		logger.Warn("Failed to load favicon config, using defaults", "error", err)
+		favCfg = &favicon.Config{}
+	}
+	favSvc := favicon.New(*favCfg, hmacSigner, sharedStorage.WithNamespace("favicon"))
+
 	// Create rate limiter for /api/autocomplete (30 req/min/IP)
 	rateLimiter := server.NewRateLimiter(server.DefaultRateLimit, time.Minute)
 	defer rateLimiter.Close()
@@ -197,7 +243,8 @@ func main() {
 	}
 
 	// Create server
-	srv := server.New(cfg, sched, acSvc, bangTrie, rateLimiter)
+	srv := server.New(cfg, sched, acSvc, bangTrie, rateLimiter,
+		botDetector, limiterSvc, imageProxySvc, &favSvc)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

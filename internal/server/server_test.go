@@ -34,7 +34,7 @@ func TestHealthEndpoint(t *testing.T) {
 	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched, nil, nil, nil)
+	srv := New(cfg, sched, nil, nil, nil, nil, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/health", nil)
 	srv.router.ServeHTTP(w, req)
@@ -61,7 +61,7 @@ func TestCategoriesEndpoint(t *testing.T) {
 	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched, nil, nil, nil)
+	srv := New(cfg, sched, nil, nil, nil, nil, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/categories", nil)
 	srv.router.ServeHTTP(w, req)
@@ -108,7 +108,7 @@ func TestConfigEndpoint(t *testing.T) {
 	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched, nil, nil, nil)
+	srv := New(cfg, sched, nil, nil, nil, nil, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/config", nil)
 	srv.router.ServeHTTP(w, req)
@@ -159,7 +159,7 @@ func TestEnginesEndpoint(t *testing.T) {
 	c := makeTestCache(t)
 	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched, nil, nil, nil)
+	srv := New(cfg, sched, nil, nil, nil, nil, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/engines", nil)
 	srv.router.ServeHTTP(w, req)
