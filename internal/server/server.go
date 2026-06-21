@@ -7,19 +7,25 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/seargo/seargo/internal/autocomplete"
+	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/search"
 )
 
 type Server struct {
-	router    *gin.Engine
-	config    *config.Config
-	scheduler *search.Scheduler
-	http      *http.Server
+	router       *gin.Engine
+	config       *config.Config
+	scheduler    *search.Scheduler
+	autocomplete *autocomplete.Service
+	bangsService *bangs.BangTrie
+	rateLimiter  *RateLimiter
+	http         *http.Server
 }
 
-func New(cfg *config.Config, scheduler *search.Scheduler) *Server {
+func New(cfg *config.Config, scheduler *search.Scheduler,
+	ac *autocomplete.Service, bs *bangs.BangTrie, rl *RateLimiter) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
@@ -28,9 +34,12 @@ func New(cfg *config.Config, scheduler *search.Scheduler) *Server {
 	r.Use(middleware.ErrorHandler())
 
 	s := &Server{
-		router:    r,
-		config:    cfg,
-		scheduler: scheduler,
+		router:       r,
+		config:       cfg,
+		scheduler:    scheduler,
+		autocomplete: ac,
+		bangsService: bs,
+		rateLimiter:  rl,
 	}
 
 	s.setupRoutes()

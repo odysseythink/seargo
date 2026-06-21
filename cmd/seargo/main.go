@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/seargo/seargo/internal/autocomplete"
+	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
@@ -128,15 +130,49 @@ func main() {
 	}
 	logger.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
 
+	// Load bangs trie
+	bangTrie, err := bangs.NewBangTrie()
+	if err != nil {
+		logger.Warn("failed to load external bangs database, bangs disabled", "error", err)
+		bangTrie = nil
+	}
+
+	// Create autocomplete service and register providers
+	acCache := autocomplete.NewResultCache(autocomplete.DefaultCacheTTL)
+	defer acCache.Close()
+	acSvc := autocomplete.NewService(httpClient, acCache)
+	autocomplete.Register("google", autocomplete.NewGoogleProvider(httpClient))
+	autocomplete.Register("bing", autocomplete.NewBingProvider(httpClient))
+	autocomplete.Register("duckduckgo", autocomplete.NewDuckDuckGoProvider(httpClient))
+	autocomplete.Register("brave", autocomplete.NewBraveProvider(httpClient))
+	autocomplete.Register("qwant", autocomplete.NewQwantProvider(httpClient))
+	autocomplete.Register("startpage", autocomplete.NewStartpageProvider(httpClient))
+	autocomplete.Register("wikipedia", autocomplete.NewWikipediaProvider(httpClient))
+	autocomplete.Register("dbpedia", autocomplete.NewDBpediaProvider(httpClient))
+	autocomplete.Register("swisscows", autocomplete.NewSwisscowsProvider(httpClient))
+	autocomplete.Register("baidu", autocomplete.NewBaiduProvider(httpClient))
+	autocomplete.Register("360search", autocomplete.NewQihoo360Provider(httpClient))
+	autocomplete.Register("naver", autocomplete.NewNaverProvider(httpClient))
+	autocomplete.Register("yandex", autocomplete.NewYandexProvider(httpClient))
+	autocomplete.Register("seznam", autocomplete.NewSeznamProvider(httpClient))
+	autocomplete.Register("sogou", autocomplete.NewSogouProvider(httpClient))
+	autocomplete.Register("mwmbl", autocomplete.NewMwmblProvider(httpClient))
+	autocomplete.Register("privacywall", autocomplete.NewPrivacyWallProvider(httpClient))
+	autocomplete.Register("quark", autocomplete.NewQuarkProvider(httpClient))
+
+	// Create rate limiter for /api/autocomplete (30 req/min/IP)
+	rateLimiter := server.NewRateLimiter(server.DefaultRateLimit, time.Minute)
+	defer rateLimiter.Close()
+
 	// Init scheduler (handles engine registration internally)
-	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil)
+	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie)
 	if err != nil {
 		logger.Error("Failed to init scheduler", "error", err)
 		os.Exit(1)
 	}
 
 	// Create server
-	srv := server.New(cfg, sched)
+	srv := server.New(cfg, sched, acSvc, bangTrie, rateLimiter)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

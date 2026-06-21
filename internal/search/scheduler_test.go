@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
@@ -126,36 +127,6 @@ func TestCacheKey(t *testing.T) {
 	assert.NotEqual(t, key1, key3, "different category should produce different key")
 }
 
-func TestExternalBangURL(t *testing.T) {
-	url, ok := externalBangURL("g", []string{"golang"})
-	assert.True(t, ok)
-	assert.Contains(t, url, "google.com")
-	assert.Contains(t, url, "golang")
-
-	_, ok = externalBangURL("nonexistent", []string{"test"})
-	assert.False(t, ok)
-}
-
-func TestScheduler_ExternalBang(t *testing.T) {
-	c, _ := cache.NewMultiLevel("")
-	cfg := &config.Config{
-		Search:   config.SearchConfig{MaxResults: 10, SafeSearch: 1},
-		Engines:  []config.EngineConfig{},
-		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
-	}
-
-	s, err := NewScheduler(cfg, c, nil, nil, nil)
-	require.NoError(t, err)
-
-	resp, err := s.Search(context.Background(), &models.Request{
-		Query:    "!!g golang",
-		Category: models.CategoryGeneral,
-	})
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp.RedirectURL)
-	assert.Contains(t, resp.RedirectURL, "google.com")
-}
-
 func TestPagination(t *testing.T) {
 	results := make([]models.Result, 25)
 	for i := 0; i < 25; i++ {
@@ -172,4 +143,29 @@ func TestPagination(t *testing.T) {
 
 	window2, _ := paginate(results, 3, 10)
 	assert.Len(t, window2, 5)
+}
+
+func TestScheduler_ExternalBangRedirect(t *testing.T) {
+	c, _ := cache.NewMultiLevel("")
+	cfg := &config.Config{
+		Search:   config.SearchConfig{MaxResults: 10, SafeSearch: 1},
+		Engines:  []config.EngineConfig{},
+		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
+	}
+
+	bt, err := bangs.NewBangTrie()
+	if err != nil {
+		t.Skipf("cannot load bangs data: %v", err)
+	}
+
+	s, err := NewScheduler(cfg, c, nil, nil, nil, bt)
+	require.NoError(t, err)
+
+	resp, err := s.Search(context.Background(), &models.Request{
+		Query:    "!!g test query",
+		Category: models.CategoryGeneral,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.RedirectURL, "expected redirect URL for external bang")
+	assert.Contains(t, resp.RedirectURL, "google.com")
 }

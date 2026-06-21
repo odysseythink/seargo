@@ -68,9 +68,10 @@ type ThemeColors struct {
 
 type SearchConfig struct {
 	SafeSearch         int                  `yaml:"safe_search"`
-	Autocomplete       string               `yaml:"autocomplete"`
-	AutocompleteMin    int                  `yaml:"autocomplete_min"`
-	FaviconResolver    string               `yaml:"favicon_resolver"`
+	Autocomplete         string               `yaml:"autocomplete"`
+	AutocompleteMin      int                  `yaml:"autocomplete_min"`
+	AutocompleteTimeout  float64              `yaml:"autocomplete_timeout"`
+	FaviconResolver      string               `yaml:"favicon_resolver"`
 	DefaultLang        string               `yaml:"default_lang"`
 	Languages          []string             `yaml:"languages"`
 	DefaultCategory    string               `yaml:"default_category"`

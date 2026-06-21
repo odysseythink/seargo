@@ -160,6 +160,24 @@ var (
 		},
 		[]string{"answerer", "status"},
 	)
+
+	// Autocomplete metrics
+	AutocompleteRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_autocomplete_requests_total",
+			Help: "Total number of autocomplete API requests.",
+		},
+		[]string{"backend"},
+	)
+
+	AutocompleteDurationSeconds = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_autocomplete_duration_seconds",
+			Help:    "Duration of autocomplete API requests in seconds.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"backend"},
+	)
 )
 
 func init() {
@@ -182,4 +200,6 @@ func init() {
 	prometheus.MustRegister(PluginLoadTotal)
 	prometheus.MustRegister(PluginHookDuration)
 	prometheus.MustRegister(AnswererAskTotal)
+	prometheus.MustRegister(AutocompleteRequestsTotal)
+	prometheus.MustRegister(AutocompleteDurationSeconds)
 }

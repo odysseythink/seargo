@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 	"github.com/panjf2000/ants/v2"
 
 	"github.com/seargo/seargo/internal/answerer"
+	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
@@ -41,6 +41,7 @@ type Scheduler struct {
 	categoriesAsTabs     map[string]config.CategoryTabConfig
 	pluginStorage        *plugin.PluginStorage
 	answererStorage      *answerer.AnswererStorage
+	bangsService         *bangs.BangTrie
 }
 
 // isEngineEnabled 判断引擎是否启用。Enabled 优先于 Disabled。
@@ -59,7 +60,7 @@ func engineKey(ec config.EngineConfig) string {
 	return ec.Name
 }
 
-func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage) (*Scheduler, error) {
+func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage, bangsSvc *bangs.BangTrie) (*Scheduler, error) {
 	pool, err := ants.NewPool(50)
 	if err != nil {
 		return nil, err
@@ -133,6 +134,7 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, plugi
 		categoriesAsTabs:     cfg.CategoriesAsTabs,
 		pluginStorage:        pluginStorage,
 		answererStorage:      answererStorage,
+		bangsService:         bangsSvc,
 	}, nil
 }
 
@@ -165,10 +167,11 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	}
 
 	// 3. External bang redirect
-	if parsed.ExternalBang != "" {
-		if redirectURL, ok := externalBangURL(parsed.ExternalBang, parsed.Terms); ok {
+	if parsed.ExternalBang != "" && s.bangsService != nil {
+		redirectURL := s.bangsService.Resolve(parsed.ExternalBang, strings.Join(parsed.Terms, " "))
+		if redirectURL != nil {
 			resp := &models.Response{
-				RedirectURL: redirectURL,
+				RedirectURL: *redirectURL,
 			}
 			if s.cache != nil {
 				s.cache.Set(s.cacheKey(parsed, req), resp, s.cacheTTL(req.Category))
@@ -430,27 +433,6 @@ func (s *Scheduler) cacheKey(parsed *query.ParsedQuery, req *models.Request) str
 	return fmt.Sprintf("search:%x", h.Sum64())
 }
 
-// externalBangURL 返回外部搜索引擎跳转 URL。
-// 内置映射：g→google, ddg→duckduckgo, bing, gh→github, so→stackoverflow, wiki, yt。
-func externalBangURL(bang string, terms []string) (string, bool) {
-	q := url.QueryEscape(strings.Join(terms, " "))
-
-	mappings := map[string]string{
-		"g":    "https://www.google.com/search?q=%s",
-		"ddg":  "https://duckduckgo.com/?q=%s",
-		"bing": "https://www.bing.com/search?q=%s",
-		"gh":   "https://github.com/search?q=%s",
-		"so":   "https://stackoverflow.com/search?q=%s",
-		"wiki": "https://en.wikipedia.org/w/index.php?search=%s",
-		"yt":   "https://www.youtube.com/results?search_query=%s",
-	}
-
-	template, ok := mappings[bang]
-	if !ok {
-		return "", false
-	}
-	return fmt.Sprintf(template, q), true
-}
 
 // recordMetrics 记录结果流指标。
 func (s *Scheduler) recordMetrics(resp *models.Response) {

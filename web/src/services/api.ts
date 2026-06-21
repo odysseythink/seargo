@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { SearchRequest, SearchResponse } from '../types/search';
+import type { AutocompleteResponse } from '../types/search';
 import type { EngineInfo } from '../types/engine';
 import type { Config } from '../types/config';
 
@@ -20,4 +21,9 @@ export const api = {
 
   getConfig: () =>
     client.get<Config>('/config'),
+
+  autocomplete: (q: string, backend?: string, format?: string) =>
+    client.get<AutocompleteResponse>('/autocomplete', {
+      params: { q, backend, format },
+    }),
 };

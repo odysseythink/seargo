@@ -4,9 +4,11 @@ import { ResultCard } from '../components/results/ResultCard';
 import { ImageGrid } from '../components/results/ImageGrid';
 import { AnswerBox } from '../components/results/AnswerBox';
 import { InfoboxPanel } from '../components/results/InfoboxPanel';
+import AutocompleteDropdown from '../components/search/AutocompleteDropdown';
 
 export default function SearchPage() {
   const [input, setInput] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const { results, answers, corrections, infoboxes, isLoading, enginesUsed, enginesFailed, responseTimeMs, error, search } = useSearchStore();
   const hasSearched = results.length > 0 || error !== null || enginesUsed.length > 0;
 
@@ -35,15 +37,35 @@ export default function SearchPage() {
         {/* Search Box */}
         <form onSubmit={handleSubmit} className="relative mb-8">
           <div className="flex gap-2">
-            <div className="flex-1 relative">
+            <div
+              className="flex-1 relative"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setTimeout(() => setShowDropdown(false), 150);
+                }
+              }}
+            >
               <input
                 type="text" value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  setShowDropdown(true);
+                }}
                 placeholder="Search the web..."
                 className="w-full px-5 py-3.5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
                          text-[#e5e5e5] placeholder-[#6b7280] outline-none
                          focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/30
                          transition-all duration-200 text-base"
+              />
+              <AutocompleteDropdown
+                query={input}
+                onSelect={(value) => {
+                  setInput(value);
+                  setShowDropdown(false);
+                  search({ q: value });
+                }}
+                onClose={() => setShowDropdown(false)}
+                visible={showDropdown}
               />
               {input && (
                 <button type="button" onClick={() => setInput('')}

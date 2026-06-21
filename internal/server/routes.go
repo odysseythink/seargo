@@ -24,6 +24,8 @@ func (s *Server) setupRoutes() {
 		api.GET("/config", s.handleConfig)
 			api.GET("/preferences", s.handleGetPreferences)
 			api.PUT("/preferences", s.handlePutPreferences)
+		api.GET("/autocomplete", s.handleAutocomplete)
+		api.GET("/opensearch.xml", s.handleOpenSearch)
 	}
 
 	s.router.GET("/health", s.handleHealth)

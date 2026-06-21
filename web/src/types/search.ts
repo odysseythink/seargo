@@ -226,12 +226,24 @@ export interface AnswererPrefItem {
   examples?: string[];
 }
 
+export interface AutocompleteSuggestion {
+  label: string;
+  value: string;
+}
+
+export interface AutocompleteResponse {
+  query: string;
+  suggestions: AutocompleteSuggestion[];
+}
+
 export interface PreferencesResponse {
   plugins: PluginPrefItem[];
   answerers: AnswererPrefItem[];
+  autocomplete: string;
 }
 
 export interface PreferencesUpdate {
   plugins: Record<string, boolean>;
   answerers: Record<string, boolean>;
+  autocomplete?: string;
 }

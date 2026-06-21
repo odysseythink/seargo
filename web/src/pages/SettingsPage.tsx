@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [prefs, setPrefs] = useState<PreferencesResponse | null>(null);
   const [pluginActive, setPluginActive] = useState<Record<string, boolean>>({});
   const [answererActive, setAnswererActive] = useState<Record<string, boolean>>({});
+  const [autocompleteBackend, setAutocompleteBackend] = useState<string>('google');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ export default function SettingsPage() {
       const aa: Record<string, boolean> = {};
       for (const a of data.answerers) aa[a.id] = a.active;
       setAnswererActive(aa);
+      setAutocompleteBackend(data.autocomplete || 'google');
     });
   }, []);
 
@@ -52,6 +54,20 @@ export default function SettingsPage() {
     }
   };
 
+  const changeAutocomplete = async (backend: string) => {
+    setAutocompleteBackend(backend);
+    setSaving(true);
+    try {
+      await updatePreferences({
+        plugins: pluginActive,
+        answerers: answererActive,
+        autocomplete: backend,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!prefs) return <div className="p-4 text-[#e5e5e5]">Loading preferences...</div>;
 
   const sections: Record<string, string> = {
@@ -66,6 +82,40 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6 text-[#e5e5e5]">Preferences</h1>
+
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold mb-2 text-[#9ca3af]">Search</h2>
+        <div className="space-y-1">
+          <label className="flex flex-col gap-1">
+            <span className="text-sm text-[#e5e5e5]">Autocomplete backend</span>
+            <select
+              value={autocompleteBackend}
+              onChange={(e) => changeAutocomplete(e.target.value)}
+              className="w-64 px-3 py-2 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)]
+                         rounded-lg text-[#e5e5e5] outline-none focus:border-[#3b82f6]"
+            >
+              <option value="google">Google</option>
+              <option value="bing">Bing</option>
+              <option value="duckduckgo">DuckDuckGo</option>
+              <option value="brave">Brave</option>
+              <option value="qwant">Qwant</option>
+              <option value="startpage">Startpage</option>
+              <option value="wikipedia">Wikipedia</option>
+              <option value="dbpedia">DBpedia</option>
+              <option value="swisscows">Swisscows</option>
+              <option value="baidu">Baidu</option>
+              <option value="360search">360 Search</option>
+              <option value="naver">Naver</option>
+              <option value="yandex">Yandex</option>
+              <option value="seznam">Seznam</option>
+              <option value="sogou">Sogou</option>
+              <option value="mwmbl">Mwmbl</option>
+              <option value="privacywall">PrivacyWall</option>
+              <option value="quark">Quark</option>
+            </select>
+          </label>
+        </div>
+      </section>
 
       {saving && <div className="text-sm text-gray-500 mb-2">Saving...</div>}
 

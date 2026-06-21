@@ -31,9 +31,9 @@ func TestHealthEndpoint(t *testing.T) {
 		Search: config.SearchConfig{DefaultLang: "zh-CN"},
 	}
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil)
+	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched)
+	srv := New(cfg, sched, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/health", nil)
 	srv.router.ServeHTTP(w, req)
@@ -58,9 +58,9 @@ func TestCategoriesEndpoint(t *testing.T) {
 		Outgoing: config.OutgoingConfig{RequestTimeout: 15},
 	}
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil)
+	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched)
+	srv := New(cfg, sched, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/categories", nil)
 	srv.router.ServeHTTP(w, req)
@@ -105,9 +105,9 @@ func TestConfigEndpoint(t *testing.T) {
 		},
 	}
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil)
+	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched)
+	srv := New(cfg, sched, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/config", nil)
 	srv.router.ServeHTTP(w, req)
@@ -156,9 +156,9 @@ func TestEnginesEndpoint(t *testing.T) {
 	mockEngine := &mockEngineForServer{name: "google", categories: []models.Category{models.CategoryGeneral}}
 	engine.Register("google", mockEngine)
 	c, _ := cache.NewMultiLevel("")
-	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil)
+	sched, _ := search.NewScheduler(cfg, c, nil, nil, nil, nil)
 
-	srv := New(cfg, sched)
+	srv := New(cfg, sched, nil, nil, nil)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/api/engines", nil)
 	srv.router.ServeHTTP(w, req)
