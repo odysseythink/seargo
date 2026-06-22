@@ -12,7 +12,7 @@ export default function CategorySelector() {
     api.getCategories().then(resp => {
       const cats = resp.data.categories;
       if (Array.isArray(cats)) {
-        setCategories(cats);
+        setCategories(cats.map((c: any) => (typeof c === 'string' ? c : c.name)));
       }
     }).catch(() => {});
   }, []);

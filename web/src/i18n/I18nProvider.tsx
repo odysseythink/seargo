@@ -78,8 +78,21 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center">
-        <div className="inline-block w-8 h-8 border-2 border-[#3b82f6]/30 border-t-[#3b82f6] rounded-full animate-spin" />
+      <div style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--color-base-background)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <div style={{
+          width: '2rem',
+          height: '2rem',
+          border: '2px solid var(--color-result-border)',
+          borderTopColor: 'var(--color-button-background)',
+          borderRadius: '9999px',
+          animation: 'spin 1s linear infinite',
+        }} />
       </div>
     );
   }
