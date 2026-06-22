@@ -6,11 +6,12 @@ export async function fetchPreferences(): Promise<PreferencesResponse> {
   return res.json();
 }
 
-export async function updatePreferences(update: PreferencesUpdate): Promise<void> {
+export async function updatePreferences(update: PreferencesUpdate): Promise<PreferencesResponse> {
   const res = await fetch("/api/preferences", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(update),
   });
   if (!res.ok) throw new Error(`Failed to update preferences: ${res.status}`);
+  return res.json();
 }

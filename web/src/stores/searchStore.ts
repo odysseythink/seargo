@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Result, SearchRequest, Answer, Infobox, SearchState } from '../types/search';
+import type { SearchState } from '../types/search';
 import { api } from '../services/api';
 
 export const useSearchStore = create<SearchState>((set) => ({

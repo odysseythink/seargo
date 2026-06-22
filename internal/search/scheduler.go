@@ -42,6 +42,7 @@ type Scheduler struct {
 	pluginStorage        *plugin.PluginStorage
 	answererStorage      *answerer.AnswererStorage
 	bangsService         *bangs.BangTrie
+	engineTraitsMap      engine.EngineTraitsMap
 }
 
 // isEngineEnabled 判断引擎是否启用。Enabled 优先于 Disabled。
@@ -60,7 +61,7 @@ func engineKey(ec config.EngineConfig) string {
 	return ec.Name
 }
 
-func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage, bangsSvc *bangs.BangTrie) (*Scheduler, error) {
+func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage, bangsSvc *bangs.BangTrie, traitsMap engine.EngineTraitsMap) (*Scheduler, error) {
 	pool, err := ants.NewPool(50)
 	if err != nil {
 		return nil, err
@@ -135,6 +136,7 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, plugi
 		pluginStorage:        pluginStorage,
 		answererStorage:      answererStorage,
 		bangsService:         bangsSvc,
+		engineTraitsMap:      traitsMap,
 	}, nil
 }
 
@@ -222,7 +224,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 
 	// 6. Execute processors (concurrent)
 	container := NewTypedResultContainer(s.engineWeights)
-	s.executeProcessors(ctx, procs, parsed, req.Page, container, searchCtx)
+	s.executeProcessors(ctx, procs, parsed, req.Page, container, searchCtx, req.Language)
 
 	// Hook: post_search â plugins append additional results.
 	if s.pluginStorage != nil && searchCtx != nil {
@@ -286,7 +288,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 }
 
 // executeProcessors 并发执行所有 processor，将结果写入 container。
-func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer, searchCtx *plugin.SearchContext) {
+func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer, searchCtx *plugin.SearchContext, userLocale string) {
 	var wg sync.WaitGroup
 
 	for _, p := range procs {
@@ -295,8 +297,17 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 		s.workerPool.Submit(func() {
 			defer wg.Done()
 
+			// Resolve engine-specific locale from traits
+			procCtx := ctx
+			if s.engineTraitsMap != nil {
+				if traits, ok := s.engineTraitsMap.Lookup(proc.Engine().Name()); ok {
+					resolved := traits.Resolve(userLocale)
+					procCtx = context.WithValue(ctx, processor.CtxKeyResolvedLocale, resolved)
+				}
+			}
+
 			engineStart := time.Now()
-			result, err := proc.Search(ctx, parsed, page)
+			result, err := proc.Search(procCtx, parsed, page)
 
 			if err != nil {
 				metrics.EngineQueriesTotal.WithLabelValues(proc.Engine().Name(), "failed").Inc()

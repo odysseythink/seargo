@@ -13,6 +13,11 @@ import (
 
 var ErrUnsupportedSearch = errors.New("unsupported search")
 
+// CtxKeyResolvedLocale is the context key for passing the engine-specific
+// resolved locale from the scheduler down to the processor's Search method.
+type ctxKeyResolvedLocale struct{}
+var CtxKeyResolvedLocale ctxKeyResolvedLocale
+
 // Suspension 定义暂停/恢复能力接口，由 search.SuspensionTracker 实现。
 type Suspension interface {
 	Ban(engineName, errorClass string)
@@ -21,13 +26,14 @@ type Suspension interface {
 
 // RequestParams 是传给底层 engine.Engine.Search 的参数。
 type RequestParams struct {
-	Query      string
-	Category   models.Category
-	PageNo     int
-	Language   string
-	TimeRange  string
-	SafeSearch int
-	EngineData map[string]any
+	Query          string
+	Category       models.Category
+	PageNo         int
+	Language       string
+	TimeRange      string
+	SafeSearch     int
+	EngineData     map[string]any
+	ResolvedLocale engine.ResolvedLocale // engine-specific locale resolved from traits
 }
 
 // ProcessorResult 是单次 processor 搜索返回的结果流。

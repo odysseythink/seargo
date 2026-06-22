@@ -49,12 +49,22 @@ func (p *OnlineProcessor) Search(ctx context.Context, q *query.ParsedQuery, page
 	if !ok {
 		return nil, ErrUnsupportedSearch
 	}
+
+	// Extract resolved locale from context (set by scheduler in executeProcessors)
+	if resolved, ok := ctx.Value(CtxKeyResolvedLocale).(engine.ResolvedLocale); ok {
+		params.ResolvedLocale = resolved
+	}
+
 	req := &models.Request{
 		Query:      params.Query,
 		Language:   params.Language,
 		SafeSearch: params.SafeSearch,
 		TimeRange:  params.TimeRange,
 		Page:       params.PageNo,
+	}
+	// Apply engine-specific resolved locale from traits
+	if params.ResolvedLocale.Language != "" {
+		req.Language = params.ResolvedLocale.Language
 	}
 	resp, err := p.eng.Search(ctx, req)
 	if err != nil {

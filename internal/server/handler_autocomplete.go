@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/seargo/seargo/internal/metrics"
+	"github.com/seargo/seargo/internal/preferences"
 )
 
 // autocompleteRequest binds query parameters for /api/autocomplete.
@@ -82,6 +83,9 @@ func (s *Server) handleAutocomplete(c *gin.Context) {
 		locale := s.config.Search.DefaultLang
 		if locale == "" {
 			locale = "en"
+		}
+		if prefs := preferences.CtxPreferences(c); prefs != nil && prefs.Locale != "" {
+			locale = prefs.Locale
 		}
 		suggestions = s.autocomplete.Suggest(c.Request.Context(), backend, req.Query, locale)
 	}

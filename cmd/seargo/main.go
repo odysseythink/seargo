@@ -16,10 +16,12 @@ import (
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/favicon"
+	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
 	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/middleware"
+	"github.com/seargo/seargo/internal/preferences"
 	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/internal/security"
 	"github.com/seargo/seargo/internal/server"
@@ -235,8 +237,14 @@ func main() {
 	rateLimiter := server.NewRateLimiter(server.DefaultRateLimit, time.Minute)
 	defer rateLimiter.Close()
 
+	// Init preferences store
+	preferencesStore := preferences.NewStore(cfg)
+
+	// Init locale registry for i18n
+	localeReg := i18n.NewLocaleRegistry()
+
 	// Init scheduler (handles engine registration internally)
-	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie)
+	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie, traits)
 	if err != nil {
 		logger.Error("Failed to init scheduler", "error", err)
 		os.Exit(1)
@@ -244,7 +252,7 @@ func main() {
 
 	// Create server
 	srv := server.New(cfg, sched, acSvc, bangTrie, rateLimiter,
-		botDetector, limiterSvc, imageProxySvc, &favSvc)
+		botDetector, limiterSvc, imageProxySvc, &favSvc, preferencesStore, localeReg)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

@@ -236,14 +236,66 @@ export interface AutocompleteResponse {
   suggestions: AutocompleteSuggestion[];
 }
 
+export interface UserPreferences {
+  categories: string[];
+  language: string;
+  locale: string;
+  autocomplete: string;
+  favicon_resolver: string;
+  image_proxy: boolean;
+  method: string;
+  safesearch: number;
+  theme: string;
+  results_on_new_tab: boolean;
+  doi_resolver: string;
+  simple_style: string;
+  center_alignment: boolean;
+  query_in_title: boolean;
+  search_on_category_select: boolean;
+  hotkeys: string;
+  url_formatting: string;
+  disabled_engines: string[];
+  enabled_engines: string[];
+  disabled_plugins: string[];
+  enabled_plugins: string[];
+  tokens: string[];
+  locked: string[];
+}
+
 export interface PreferencesResponse {
   plugins: PluginPrefItem[];
   answerers: AnswererPrefItem[];
   autocomplete: string;
+  settings: UserPreferences;
+  categories: string[];
+  themes: string[];
+  locales: { tag: string; name: string }[];
+  doi_resolvers: string[];
 }
 
 export interface PreferencesUpdate {
-  plugins: Record<string, boolean>;
-  answerers: Record<string, boolean>;
+  language?: string;
+  locale?: string;
   autocomplete?: string;
+  favicon_resolver?: string;
+  image_proxy?: boolean;
+  method?: string;
+  safesearch?: number;
+  theme?: string;
+  results_on_new_tab?: boolean;
+  doi_resolver?: string;
+  simple_style?: string;
+  center_alignment?: boolean;
+  query_in_title?: boolean;
+  search_on_category_select?: boolean;
+  hotkeys?: string;
+  url_formatting?: string;
+  disabled_engines?: string[];
+  enabled_engines?: string[];
+  disabled_plugins?: string[];
+  enabled_plugins?: string[];
+  tokens?: string[];
+  categories?: string[];
+  plugins?: Record<string, boolean>;
+  answerers?: Record<string, boolean>;
 }

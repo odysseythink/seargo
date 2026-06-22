@@ -11,7 +11,9 @@ import (
 
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
+	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/middleware"
+	"github.com/seargo/seargo/internal/preferences"
 	"github.com/seargo/seargo/pkg/models"
 	"github.com/seargo/seargo/web"
 )
@@ -25,6 +27,8 @@ func (s *Server) setupRoutes() {
 		api.GET("/config", s.handleConfig)
 		api.GET("/preferences", s.handleGetPreferences)
 		api.PUT("/preferences", s.handlePutPreferences)
+		api.GET("/preferences/export", s.handleExportPreferences)
+		api.GET("/preferences/import", s.handleImportPreferences)
 		api.GET("/autocomplete", s.handleAutocomplete)
 		api.GET("/opensearch.xml", s.handleOpenSearch)
 	}
@@ -59,9 +63,22 @@ func (s *Server) handleSearch(c *gin.Context) {
 		return
 	}
 
+	// Use cookie preferences for defaults, with request param override
+	prefs := preferences.CtxPreferences(c)
+	defaultLang := s.config.Search.DefaultLang
+	defaultCategory := models.Category(s.config.Search.DefaultCategory)
+	if prefs != nil {
+		if prefs.Language != "" {
+			defaultLang = prefs.Language
+		}
+		if len(prefs.Categories) > 0 {
+			defaultCategory = models.Category(prefs.Categories[0])
+		}
+	}
+
 	req.Normalize(models.NormalizeDefaults{
-		DefaultLang:     s.config.Search.DefaultLang,
-		DefaultCategory: models.Category(s.config.Search.DefaultCategory),
+		DefaultLang:     defaultLang,
+		DefaultCategory: defaultCategory,
 		DefaultPageSize: s.config.Search.MaxResults,
 		MaxResults:      s.config.Search.MaxResults,
 	})
@@ -202,6 +219,20 @@ func (s *Server) handleConfig(c *gin.Context) {
 		Preferences preferencesConfigResponse `json:"preferences"`
 	}
 
+	// Negotiate locale from Accept-Language and config
+	var locale string
+	var rtl bool
+	if s.localeRegistry != nil {
+		neg := i18n.NewNegotiator(s.localeRegistry)
+		locale = neg.Negotiate(c.Request.Header.Get("Accept-Language"), "", s.config.UI.DefaultLocale)
+		rtl = s.localeRegistry.IsRTL(locale)
+	} else {
+		locale = s.config.UI.DefaultLocale
+		if locale == "" {
+			locale = "en"
+		}
+	}
+
 	resp := configResponse{
 		General: generalConfigResponse{
 			InstanceName:  s.config.General.InstanceName,
@@ -227,7 +258,8 @@ func (s *Server) handleConfig(c *gin.Context) {
 		},
 		UI: uiConfigResponse{
 			DefaultTheme:           s.config.UI.DefaultTheme,
-			DefaultLocale:          s.config.UI.DefaultLocale,
+			DefaultLocale:          locale,
+			RTL:                    rtl,
 			CenterAlignment:        s.config.UI.CenterAlignment,
 			ResultsOnNewTab:        s.config.UI.ResultsOnNewTab,
 			QueryInTitle:           s.config.UI.QueryInTitle,
@@ -272,6 +304,7 @@ type serverConfigResponse struct {
 type uiConfigResponse struct {
 	DefaultTheme           string `json:"default_theme"`
 	DefaultLocale          string `json:"default_locale"`
+	RTL                    bool   `json:"rtl"`
 	CenterAlignment        bool   `json:"center_alignment"`
 	ResultsOnNewTab        bool   `json:"results_on_new_tab"`
 	QueryInTitle           bool   `json:"query_in_title"`

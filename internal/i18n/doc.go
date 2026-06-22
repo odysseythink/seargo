@@ -1,5 +1,3 @@
-// Package i18n provides internationalization support.
-// Planned features: message catalog, locale detection, translation loading.
-//
-// Phase 1: skeleton only. Implementation deferred to later phases.
+// Package i18n provides internationalization support:
+// message catalogs, locale detection, locale registry, and engine locale matching.
 package i18n

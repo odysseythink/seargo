@@ -69,3 +69,72 @@ func TestEngineTraits_LookupByName(t *testing.T) {
 	assert.False(t, ok)
 	assert.Empty(t, traits.Languages)
 }
+
+func TestEngineTraits_Resolve_Bing(t *testing.T) {
+	traits := EngineTraits{
+		DataType:  "traits_v1",
+		AllLocale: "clear",
+		Regions: map[string]string{
+			"zh-CN": "zh-cn",
+			"en-US": "en-us",
+			"fr-FR": "fr-fr",
+		},
+	}
+
+	resolved := traits.Resolve("zh-CN")
+	if resolved.Region != "zh-cn" {
+		t.Errorf("zh-CN region = %q, want zh-cn", resolved.Region)
+	}
+	if resolved.All {
+		t.Error("All should be false when region resolved")
+	}
+
+	resolved = traits.Resolve("fr-BE")
+	if resolved.Region != "fr-fr" {
+		t.Errorf("fr-BE region = %q, want fr-fr (territory fallback)", resolved.Region)
+	}
+}
+
+func TestEngineTraits_Resolve_Wikipedia(t *testing.T) {
+	traits := EngineTraits{
+		Languages: map[string]string{
+			"de": "de",
+			"fr": "fr",
+			"zh": "zh",
+		},
+	}
+
+	resolved := traits.Resolve("de")
+	if resolved.Language != "de" {
+		t.Errorf("de language = %q, want de", resolved.Language)
+	}
+
+	// zh-CN → zh language (language fallback)
+	resolved = traits.Resolve("zh-CN")
+	if resolved.Language != "zh" {
+		t.Errorf("zh-CN language = %q, want zh", resolved.Language)
+	}
+}
+
+func TestEngineTraits_Resolve_EmptyTraits(t *testing.T) {
+	traits := EngineTraits{AllLocale: "clear"}
+
+	resolved := traits.Resolve("zh-CN")
+	if !resolved.All {
+		t.Error("All should be true when no languages/regions matched")
+	}
+}
+
+func TestEngineTraits_Resolve_NoMatch(t *testing.T) {
+	traits := EngineTraits{
+		Languages: map[string]string{"en": "en"},
+	}
+
+	resolved := traits.Resolve("xx-YY")
+	if resolved.Language != "" {
+		t.Errorf("unmatchable: Language = %q, want empty", resolved.Language)
+	}
+	if resolved.All {
+		t.Error("All should be false when all_locale is empty")
+	}
+}

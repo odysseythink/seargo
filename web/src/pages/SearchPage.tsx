@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchStore } from '../stores/searchStore';
 import { ResultCard } from '../components/results/ResultCard';
 import { ImageGrid } from '../components/results/ImageGrid';
@@ -7,6 +8,7 @@ import { InfoboxPanel } from '../components/results/InfoboxPanel';
 import AutocompleteDropdown from '../components/search/AutocompleteDropdown';
 
 export default function SearchPage() {
+  const { t } = useTranslation();
   const [input, setInput] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const { results, answers, corrections, infoboxes, isLoading, enginesUsed, enginesFailed, responseTimeMs, error, search } = useSearchStore();
@@ -31,7 +33,7 @@ export default function SearchPage() {
           <h1 className="text-5xl font-bold tracking-tight mb-2">
             <span className="text-[#3b82f6]">Sear</span>Go
           </h1>
-          <p className="text-[#9ca3af] text-sm">Privacy-respecting meta search</p>
+          <p className="text-[#9ca3af] text-sm">{t('search.subtitle')}</p>
         </div>
 
         {/* Search Box */}
@@ -51,7 +53,7 @@ export default function SearchPage() {
                   setInput(e.target.value);
                   setShowDropdown(true);
                 }}
-                placeholder="Search the web..."
+                placeholder={t('search.placeholder')}
                 className="w-full px-5 py-3.5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
                          text-[#e5e5e5] placeholder-[#6b7280] outline-none
                          focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/30
@@ -69,7 +71,7 @@ export default function SearchPage() {
               />
               {input && (
                 <button type="button" onClick={() => setInput('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#e5e5e5]">
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#e5e5e5]">
                   ✕
                 </button>
               )}
@@ -80,7 +82,7 @@ export default function SearchPage() {
                        flex items-center gap-2 min-w-[100px] justify-center">
               {isLoading ? (
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : 'Search'}
+              ) : t('search.button')}
             </button>
           </div>
         </form>
@@ -93,10 +95,10 @@ export default function SearchPage() {
         {/* Results Stats */}
         {(results.length > 0 || enginesFailed.length > 0) && (
           <div className="mb-4 text-sm text-[#9ca3af]">
-            Found <span className="text-[#e5e5e5] font-medium">{results.length}</span> results
-            {responseTimeMs > 0 && ` in ${responseTimeMs}ms`}
-            {enginesUsed.length > 0 && <span> · Engines: {enginesUsed.join(', ')}</span>}
-            {enginesFailed.length > 0 && <span className="text-red-400"> · Failed: {enginesFailed.join(', ')}</span>}
+            {t('search.found_results', { count: results.length })}
+            {responseTimeMs > 0 && t('search.in_time', { time: responseTimeMs })}
+            {enginesUsed.length > 0 && <span> · {t('search.engines')}: {enginesUsed.join(', ')}</span>}
+            {enginesFailed.length > 0 && <span className="text-red-400"> · {t('search.failed')}: {enginesFailed.join(', ')}</span>}
           </div>
         )}
 
@@ -110,7 +112,7 @@ export default function SearchPage() {
         {/* Corrections */}
         {corrections.length > 0 && (
           <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-xl text-yellow-300 text-sm">
-            Did you mean: {corrections.join(', ')}?
+            {t('search.did_you_mean')}: {corrections.join(', ')}?
           </div>
         )}
 
@@ -138,8 +140,8 @@ export default function SearchPage() {
         {/* Empty state */}
         {hasSearched && results.length === 0 && !isLoading && !error && (
           <div className="text-center py-12 text-[#6b7280]">
-            <p className="text-lg mb-2">No results found</p>
-            <p className="text-sm">Try a different query or check your engine configuration</p>
+            <p className="text-lg mb-2">{t('search.no_results')}</p>
+            <p className="text-sm">{t('search.no_results_hint')}</p>
           </div>
         )}
       </div>

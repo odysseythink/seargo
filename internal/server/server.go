@@ -12,9 +12,11 @@ import (
 	"github.com/seargo/seargo/internal/botdetection"
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/favicon"
+	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
 	"github.com/seargo/seargo/internal/middleware"
+	"github.com/seargo/seargo/internal/preferences"
 	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/internal/security"
 )
@@ -29,16 +31,20 @@ type Server struct {
 	http         *http.Server
 
 	// Phase 8 services
-	botDetector *botdetection.Detector
-	limiterSvc  limiter.Limiter
-	imageProxy  imageproxy.Proxy
-	favSvc      *favicon.Service
+	botDetector      *botdetection.Detector
+	limiterSvc       limiter.Limiter
+	imageProxy       imageproxy.Proxy
+	favSvc           *favicon.Service
+	preferencesStore *preferences.PreferencesStore
+	localeRegistry   *i18n.LocaleRegistry
 }
 
 func New(cfg *config.Config, scheduler *search.Scheduler,
 	ac *autocomplete.Service, bs *bangs.BangTrie, rl *RateLimiter,
 	botDetector *botdetection.Detector, limiterSvc limiter.Limiter,
-	imageProxy imageproxy.Proxy, favSvc *favicon.Service) *Server {
+	imageProxy imageproxy.Proxy, favSvc *favicon.Service,
+	prefsStore *preferences.PreferencesStore,
+	localeReg *i18n.LocaleRegistry) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
@@ -72,6 +78,11 @@ func New(cfg *config.Config, scheduler *search.Scheduler,
 	// 7. ErrorHandler
 	r.Use(middleware.ErrorHandler())
 
+	// 8. Preferences (attaches per-user cookie preferences to context)
+	if prefsStore != nil {
+		r.Use(preferences.PreferencesMiddleware(prefsStore))
+	}
+
 	s := &Server{
 		router:       r,
 		config:       cfg,
@@ -79,10 +90,12 @@ func New(cfg *config.Config, scheduler *search.Scheduler,
 		autocomplete: ac,
 		bangsService: bs,
 		rateLimiter:  rl,
-		botDetector:  botDetector,
-		limiterSvc:   limiterSvc,
-		imageProxy:   imageProxy,
-		favSvc:       favSvc,
+		botDetector:      botDetector,
+		limiterSvc:       limiterSvc,
+		imageProxy:       imageProxy,
+		favSvc:           favSvc,
+		preferencesStore: prefsStore,
+		localeRegistry:   localeReg,
 	}
 
 	s.setupRoutes()

@@ -68,7 +68,7 @@ func (l *Loader) Load(ctx context.Context, configs []EngineInitConfig) (*LoadRes
 		}
 
 		traits, _ := l.traits.Lookup(cfg.Name)
-		cfg.EngineTraits = resolveTraits(traits, "", "")
+		cfg.EngineTraits = traits
 
 		if !eng.Setup(cfg) {
 			continue

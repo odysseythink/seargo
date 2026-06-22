@@ -4,4 +4,8 @@ export interface Config {
   safe_search: number;
   autocomplete: string;
   max_results: number;
+  ui?: {
+    default_locale: string;
+    rtl: boolean;
+  };
 }
