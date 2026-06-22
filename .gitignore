@@ -11,3 +11,6 @@ web/node_modules/
 web/dist/
 .ody-code/
 seargo
+configs/favicons.toml
+configs/limiter.toml
+configs/settings.yml

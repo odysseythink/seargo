@@ -43,6 +43,7 @@ type Scheduler struct {
 	answererStorage      *answerer.AnswererStorage
 	bangsService         *bangs.BangTrie
 	engineTraitsMap      engine.EngineTraitsMap
+	engineStatsStore     *metrics.EngineStatsStore
 }
 
 // isEngineEnabled 判断引擎是否启用。Enabled 优先于 Disabled。
@@ -61,7 +62,7 @@ func engineKey(ec config.EngineConfig) string {
 	return ec.Name
 }
 
-func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage, bangsSvc *bangs.BangTrie, traitsMap engine.EngineTraitsMap) (*Scheduler, error) {
+func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage, bangsSvc *bangs.BangTrie, traitsMap engine.EngineTraitsMap, engineStatsStore *metrics.EngineStatsStore) (*Scheduler, error) {
 	pool, err := ants.NewPool(50)
 	if err != nil {
 		return nil, err
@@ -137,6 +138,7 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, plugi
 		answererStorage:      answererStorage,
 		bangsService:         bangsSvc,
 		engineTraitsMap:      traitsMap,
+		engineStatsStore:     engineStatsStore,
 	}, nil
 }
 
@@ -216,6 +218,16 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 			Results: []models.Result{},
 		}, nil
 	}
+
+	// Structured logging: search started
+	log := logger.WithContext(ctx)
+	log.Info("search started",
+		"query_trunc", truncateQuery(req.Query, 64),
+		"engines", len(procs),
+	)
+	log.Debug("search query",
+		"query", req.Query,
+	)
 
 	// 5. Compute timeout
 	timeout := s.computeTimeout(parsed, procs)
@@ -306,6 +318,9 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 				}
 			}
 
+			// Initialize HTTP duration holder for this engine call
+			procCtx = httpx.ContextWithHTTPDuration(procCtx)
+
 			engineStart := time.Now()
 			result, err := proc.Search(procCtx, parsed, page)
 
@@ -319,12 +334,39 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 				}
 				logger.Warn("engine failed", "engine", proc.Engine().Name(), "error", err)
 				container.MarkUnresponsive(proc.Engine().Name(), err.Error())
+
+				// Observe timing histograms on error
+				engineDur := time.Since(engineStart)
+				httpDuration, _ := httpx.HTTPDurationFromContext(procCtx)
+				metrics.EngineTimeTotal.WithLabelValues(proc.Engine().Name()).Observe(engineDur.Seconds())
+				metrics.EngineTimeHTTP.WithLabelValues(proc.Engine().Name()).Observe(httpDuration.Seconds())
+				metrics.EngineTimeProcessing.WithLabelValues(proc.Engine().Name()).Observe((engineDur - httpDuration).Seconds())
+				metrics.EngineResultCount.WithLabelValues(proc.Engine().Name()).Observe(0)
+				metrics.EngineErrorCount.WithLabelValues(proc.Engine().Name(), metrics.ClassifyError(err)).Inc()
+
+				// Record engine stats on error
+				if s.engineStatsStore != nil {
+					s.engineStatsStore.Record(proc.Engine().Name(), engineDur, httpDuration, 0, err)
+				}
 				return
 			}
 
 			metrics.EngineQueriesTotal.WithLabelValues(proc.Engine().Name(), "success").Inc()
-			metrics.EngineQueryDuration.WithLabelValues(proc.Engine().Name()).Observe(time.Since(engineStart).Seconds())
+
+			// Observe timing histograms on success
+			engineDur := time.Since(engineStart)
+			httpDuration, _ := httpx.HTTPDurationFromContext(procCtx)
+			metrics.EngineQueryDuration.WithLabelValues(proc.Engine().Name()).Observe(engineDur.Seconds())
 			metrics.EngineResults.WithLabelValues(proc.Engine().Name()).Observe(float64(len(result.Results)))
+			metrics.EngineTimeTotal.WithLabelValues(proc.Engine().Name()).Observe(engineDur.Seconds())
+			metrics.EngineTimeHTTP.WithLabelValues(proc.Engine().Name()).Observe(httpDuration.Seconds())
+			metrics.EngineTimeProcessing.WithLabelValues(proc.Engine().Name()).Observe((engineDur - httpDuration).Seconds())
+			metrics.EngineResultCount.WithLabelValues(proc.Engine().Name()).Observe(float64(len(result.Results)))
+
+			// Record engine stats on success
+			if s.engineStatsStore != nil {
+				s.engineStatsStore.Record(proc.Engine().Name(), engineDur, httpDuration, len(result.Results), nil)
+			}
 
 			if len(result.TypedResults) > 0 {
 				apiResults := results.ToAPIResult(result.TypedResults)
@@ -483,6 +525,14 @@ func paginate(results []models.Result, page, pageSize int) ([]models.Result, int
 
 	return results[start:end], total
 }
+func truncateQuery(q string, maxLen int) string {
+	runes := []rune(q)
+	if len(runes) <= maxLen {
+		return q
+	}
+	return string(runes[:maxLen]) + "..."
+}
+
 // buildSearchContext creates a SearchContext from parsed query and request.
 func (s *Scheduler) buildSearchContext(parsed *query.ParsedQuery, req *models.Request) *plugin.SearchContext {
 	queryStr := strings.Join(parsed.Terms, " ")

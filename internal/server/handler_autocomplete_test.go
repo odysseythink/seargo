@@ -23,7 +23,7 @@ func TestHandleAutocomplete_MissingQuery(t *testing.T) {
 		},
 	}
 
-	srv := New(cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	srv := New(cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	router := srv.router
 
 	w := httptest.NewRecorder()
@@ -46,7 +46,7 @@ func TestHandleAutocomplete_NilAutocompleteReturnsEmpty(t *testing.T) {
 		},
 	}
 
-	srv := New(cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	srv := New(cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	router := srv.router
 
 	w := httptest.NewRecorder()
@@ -71,7 +71,7 @@ func TestHandleAutocomplete_RateLimited(t *testing.T) {
 	rl := NewRateLimiter(1, time.Hour) // 1 token per hour
 	defer rl.Close()
 
-	srv := New(cfg, nil, nil, nil, rl, nil, nil, nil, nil, nil, nil)
+	srv := New(cfg, nil, nil, nil, rl, nil, nil, nil, nil, nil, nil, nil)
 	router := srv.router
 
 	w := httptest.NewRecorder()
@@ -92,7 +92,7 @@ func TestHandleOpenSearch(t *testing.T) {
 	cfg := &config.Config{
 		Search: config.SearchConfig{DefaultLang: "en"},
 	}
-	srv := New(cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	srv := New(cfg, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	router := srv.router
 
 	w := httptest.NewRecorder()

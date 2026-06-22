@@ -417,8 +417,8 @@ func TestTrustedProxiesDefault(t *testing.T) {
 	if cfg.Server.TrustedProxies[0] != "127.0.0.0/8" {
 		t.Fatalf("expected 127.0.0.0/8 as first trusted proxy, got %q", cfg.Server.TrustedProxies[0])
 	}
-	if cfg.Server.TrustedProxies[1] != "::1" {
-		t.Fatalf("expected ::1 as second trusted proxy, got %q", cfg.Server.TrustedProxies[1])
+	if cfg.Server.TrustedProxies[1] != "::1/128" {
+		t.Fatalf("expected ::1/128 as second trusted proxy, got %q", cfg.Server.TrustedProxies[1])
 	}
 }
 

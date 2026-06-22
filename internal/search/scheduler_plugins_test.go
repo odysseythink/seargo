@@ -60,7 +60,7 @@ func TestScheduler_PreSearch_AbortsSearch(t *testing.T) {
 		Search:  config.SearchConfig{DefaultCategory: "general", MaxResults: 10},
 		General: config.GeneralConfig{InstanceName: "test"},
 	}
-	sched, err := NewScheduler(cfg, nil, nil, ps, as, nil, nil)
+	sched, err := NewScheduler(cfg, nil, nil, ps, as, nil, nil, nil)
 	require.NoError(t, err)
 
 	resp, err := sched.Search(context.Background(), &models.Request{
@@ -81,7 +81,7 @@ func TestScheduler_PreSearch_Passes(t *testing.T) {
 		Search:  config.SearchConfig{DefaultCategory: "general", MaxResults: 10},
 		General: config.GeneralConfig{InstanceName: "test"},
 	}
-	sched, err := NewScheduler(cfg, nil, nil, ps, as, nil, nil)
+	sched, err := NewScheduler(cfg, nil, nil, ps, as, nil, nil, nil)
 	require.NoError(t, err)
 
 	_, err = sched.Search(context.Background(), &models.Request{
@@ -100,7 +100,7 @@ func TestScheduler_NilPluginStorage_Noop(t *testing.T) {
 		Search:  config.SearchConfig{DefaultCategory: "general", MaxResults: 10},
 		General: config.GeneralConfig{InstanceName: "test"},
 	}
-	sched, err := NewScheduler(cfg, nil, nil, nil, nil, nil, nil)
+	sched, err := NewScheduler(cfg, nil, nil, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	_, err = sched.Search(context.Background(), &models.Request{

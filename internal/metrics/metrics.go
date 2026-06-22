@@ -178,6 +178,51 @@ var (
 		},
 		[]string{"backend"},
 	)
+
+	// Per-engine timing histograms
+	EngineTimeTotal = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_engine_time_total_seconds",
+			Help:    "Total engine search time in seconds including HTTP round-trip.",
+			Buckets: []float64{0.1, 0.25, 0.5, 1, 2, 5, 10},
+		},
+		[]string{"engine"},
+	)
+
+	EngineTimeHTTP = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_engine_time_http_seconds",
+			Help:    "HTTP round-trip time for engine requests in seconds.",
+			Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2, 5},
+		},
+		[]string{"engine"},
+	)
+
+	EngineTimeProcessing = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_engine_time_processing_seconds",
+			Help:    "Engine processing time (total - HTTP) in seconds.",
+			Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2},
+		},
+		[]string{"engine"},
+	)
+
+	EngineResultCount = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "seargo_engine_result_count",
+			Help:    "Number of results per engine per search.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"engine"},
+	)
+
+	EngineErrorCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "seargo_engine_error_count_total",
+			Help: "Number of engine errors by class.",
+		},
+		[]string{"engine", "class"},
+	)
 )
 
 func init() {
@@ -202,4 +247,9 @@ func init() {
 	prometheus.MustRegister(AnswererAskTotal)
 	prometheus.MustRegister(AutocompleteRequestsTotal)
 	prometheus.MustRegister(AutocompleteDurationSeconds)
+	prometheus.MustRegister(EngineTimeTotal)
+	prometheus.MustRegister(EngineTimeHTTP)
+	prometheus.MustRegister(EngineTimeProcessing)
+	prometheus.MustRegister(EngineResultCount)
+	prometheus.MustRegister(EngineErrorCount)
 }

@@ -161,7 +161,7 @@ func TestScheduler_ExternalBangRedirect(t *testing.T) {
 		t.Skipf("cannot load bangs data: %v", err)
 	}
 
-	s, err := NewScheduler(cfg, c, nil, nil, nil, bt, nil)
+	s, err := NewScheduler(cfg, c, nil, nil, nil, bt, nil, nil)
 	require.NoError(t, err)
 
 	resp, err := s.Search(context.Background(), &models.Request{

@@ -15,7 +15,7 @@ import (
 )
 
 func newTestServerWithPrefs(cfg *config.Config, prefsStore *preferences.PreferencesStore) *Server {
-	scheduler, err := search.NewScheduler(cfg, nil, nil, nil, nil, nil, nil)
+	scheduler, err := search.NewScheduler(cfg, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -43,6 +43,7 @@ func minimalTestConfig() *config.Config {
 			SafeSearch:      1,
 			Autocomplete:    "google",
 			MaxResults:      10,
+			Formats:         []string{"html", "json"},
 		},
 		UI: config.UIConfig{
 			DefaultTheme:  "simple",

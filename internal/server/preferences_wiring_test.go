@@ -17,7 +17,7 @@ import (
 // newTestSearchServer creates a test server with preferences middleware,
 // search route, and preferences routes (so we can set cookies via PUT).
 func newTestSearchServer(cfg *config.Config, prefsStore *preferences.PreferencesStore) *Server {
-	scheduler, err := search.NewScheduler(cfg, nil, nil, nil, nil, nil, nil)
+	scheduler, err := search.NewScheduler(cfg, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -126,7 +126,7 @@ func TestHandleSearch_CookieCategoryOverridesDefault(t *testing.T) {
 func TestHandleSearch_NoMiddlewareInstalled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := minimalTestConfig()
-	scheduler, err := search.NewScheduler(cfg, nil, nil, nil, nil, nil, nil)
+	scheduler, err := search.NewScheduler(cfg, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

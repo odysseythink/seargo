@@ -14,6 +14,7 @@ import (
 	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/preferences"
+	"github.com/seargo/seargo/internal/server/render"
 	"github.com/seargo/seargo/pkg/models"
 	"github.com/seargo/seargo/web"
 )
@@ -35,6 +36,13 @@ func (s *Server) setupRoutes() {
 
 	s.router.GET("/health", s.handleHealth)
 	s.router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Stats endpoints (gated by enable_metrics)
+	if s.config.General.EnableMetrics && s.enginesStatsStore != nil {
+		s.router.GET("/api/stats/engines", s.handleStatsEngines)
+		s.router.GET("/api/stats/errors", s.handleStatsErrors)
+	}
+
 	s.router.GET("/robots.txt", middleware.HandleRobotsTxt)
 
 	// Phase 8 proxy + anti-abuse endpoints
@@ -82,6 +90,13 @@ func (s *Server) handleSearch(c *gin.Context) {
 		DefaultPageSize: s.config.Search.MaxResults,
 		MaxResults:      s.config.Search.MaxResults,
 	})
+
+	// Resolve output format from query param, Accept header, and config whitelist
+	format, fmtErr := render.ResolveFormat(c.Query("format"), c.GetHeader("Accept"), s.config.Search.Formats)
+	if fmtErr != nil {
+		c.JSON(http.StatusNotAcceptable, gin.H{"error": fmtErr.Error()})
+		return
+	}
 
 	resp, err := s.scheduler.Search(c.Request.Context(), &req)
 	if err != nil {
@@ -134,6 +149,16 @@ func (s *Server) handleSearch(c *gin.Context) {
 		}
 	}
 
+	// Render response in the requested format
+	if format != render.FormatJSON && format != render.FormatHTML {
+		data, ct, renderErr := render.Render(resp, format, s.baseURL(c))
+		if renderErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "render failed: " + renderErr.Error()})
+			return
+		}
+		c.Data(http.StatusOK, ct, data)
+		return
+	}
 	c.JSON(http.StatusOK, resp)
 }
 

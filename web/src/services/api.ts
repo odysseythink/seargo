@@ -1,6 +1,5 @@
 import axios from 'axios';
-import type { SearchRequest, SearchResponse } from '../types/search';
-import type { AutocompleteResponse } from '../types/search';
+import type { SearchRequest, SearchResponse, AutocompleteResponse, StatsEnginesResponse, StatsErrorsResponse } from '../types/search';
 import type { EngineInfo } from '../types/engine';
 import type { Config } from '../types/config';
 
@@ -26,4 +25,16 @@ export const api = {
     client.get<AutocompleteResponse>('/autocomplete', {
       params: { q, backend, format },
     }),
+};
+
+export const fetchStatsEngines = async (): Promise<StatsEnginesResponse> => {
+  const res = await fetch("/api/stats/engines");
+  if (!res.ok) throw new Error(`Failed to fetch stats: ${res.status}`);
+  return res.json();
+};
+
+export const fetchStatsErrors = async (): Promise<StatsErrorsResponse> => {
+  const res = await fetch("/api/stats/errors");
+  if (!res.ok) throw new Error(`Failed to fetch stats errors: ${res.status}`);
+  return res.json();
 };

@@ -11,6 +11,26 @@ import (
 	"github.com/seargo/seargo/internal/logger"
 )
 
+// ctxKeyHTTPDuration is an unexported context key for passing HTTP duration.
+// The context value is a *time.Duration mutable holder, set by the scheduler
+// before calling Do and written by Do after each HTTP round-trip.
+type ctxKeyHTTPDuration struct{}
+
+// ContextWithHTTPDuration returns a new context carrying a mutable HTTP duration
+// holder that Do populates after each HTTP round-trip.
+func ContextWithHTTPDuration(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKeyHTTPDuration{}, new(time.Duration))
+}
+
+// HTTPDurationFromContext extracts the HTTP request duration from context.
+func HTTPDurationFromContext(ctx context.Context) (time.Duration, bool) {
+	p, ok := ctx.Value(ctxKeyHTTPDuration{}).(*time.Duration)
+	if !ok || p == nil {
+		return 0, false
+	}
+	return *p, true
+}
+
 // Client is a network-aware HTTP client bound to a Registry.
 type Client struct {
 	registry       *Registry
@@ -268,6 +288,11 @@ func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
 		return nil, fmt.Errorf("unsupported method: %s", rb.method)
 	}
 	duration := time.Since(start)
+
+	// Record HTTP round-trip duration in the context's mutable holder.
+	if durationPtr, ok := ctx.Value(ctxKeyHTTPDuration{}).(*time.Duration); ok && durationPtr != nil {
+		*durationPtr = duration
+	}
 
 	if err != nil {
 		return nil, classifyTransportError(err)

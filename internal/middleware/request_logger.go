@@ -20,7 +20,9 @@ func RequestLogger() gin.HandlerFunc {
 		metrics.HTTPRequestsTotal.WithLabelValues(c.Request.Method, c.Request.URL.Path, status).Inc()
 		metrics.HTTPRequestDuration.WithLabelValues(c.Request.Method, c.Request.URL.Path).Observe(duration.Seconds())
 
+		rid, _ := c.Get("request_id")
 		logger.Info("http_request",
+			"request_id", rid,
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
 			"status", c.Writer.Status(),

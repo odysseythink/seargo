@@ -15,6 +15,7 @@ import (
 	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
+	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/preferences"
 	"github.com/seargo/seargo/internal/search"
@@ -37,6 +38,8 @@ type Server struct {
 	favSvc           *favicon.Service
 	preferencesStore *preferences.PreferencesStore
 	localeRegistry   *i18n.LocaleRegistry
+
+	enginesStatsStore *metrics.EngineStatsStore
 }
 
 func New(cfg *config.Config, scheduler *search.Scheduler,
@@ -44,7 +47,8 @@ func New(cfg *config.Config, scheduler *search.Scheduler,
 	botDetector *botdetection.Detector, limiterSvc limiter.Limiter,
 	imageProxy imageproxy.Proxy, favSvc *favicon.Service,
 	prefsStore *preferences.PreferencesStore,
-	localeReg *i18n.LocaleRegistry) *Server {
+	localeReg *i18n.LocaleRegistry,
+	enginesStatsStore *metrics.EngineStatsStore) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
@@ -56,29 +60,32 @@ func New(cfg *config.Config, scheduler *search.Scheduler,
 	extractor := security.NewIPExtractor(trustedProxyList)
 	r.Use(middleware.TrustedProxy(extractor))
 
-	// 2. Recovery
+	// 2. RequestID
+	r.Use(middleware.RequestID())
+
+	// 3. Recovery
 	r.Use(middleware.Recovery())
 
-	// 3. RequestLogger
+	// 4. RequestLogger
 	r.Use(middleware.RequestLogger())
 
-	// 4. BotDetection (optional)
+	// 5. BotDetection (optional)
 	if botDetector != nil {
 		r.Use(middleware.BotDetection(botDetector))
 	}
 
-	// 5. Limiter (optional, controlled by cfg.Server.Limiter)
+	// 6. Limiter (optional, controlled by cfg.Server.Limiter)
 	if limiterSvc != nil {
 		r.Use(middleware.Limiter(cfg, limiterSvc))
 	}
 
-	// 6. SecurityHeaders
+	// 7. SecurityHeaders
 	r.Use(middleware.SecurityHeaders(cfg.Server.DefaultHTTPHeaders))
 
-	// 7. ErrorHandler
+	// 8. ErrorHandler
 	r.Use(middleware.ErrorHandler())
 
-	// 8. Preferences (attaches per-user cookie preferences to context)
+	// 9. Preferences (attaches per-user cookie preferences to context)
 	if prefsStore != nil {
 		r.Use(preferences.PreferencesMiddleware(prefsStore))
 	}
@@ -96,6 +103,7 @@ func New(cfg *config.Config, scheduler *search.Scheduler,
 		favSvc:           favSvc,
 		preferencesStore: prefsStore,
 		localeRegistry:   localeReg,
+		enginesStatsStore: enginesStatsStore,
 	}
 
 	s.setupRoutes()
@@ -114,4 +122,16 @@ func (s *Server) Start() error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.http.Shutdown(ctx)
+}
+
+// baseURL returns the server base URL for RSS feed generation.
+func (s *Server) baseURL(c *gin.Context) string {
+	if s.config.Server.BaseURL != nil && *s.config.Server.BaseURL != "" {
+		return *s.config.Server.BaseURL
+	}
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + c.Request.Host
 }

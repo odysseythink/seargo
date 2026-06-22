@@ -20,6 +20,7 @@ import (
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
 	"github.com/seargo/seargo/internal/logger"
+	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/preferences"
 	"github.com/seargo/seargo/internal/search"
@@ -243,8 +244,11 @@ func main() {
 	// Init locale registry for i18n
 	localeReg := i18n.NewLocaleRegistry()
 
+	// Init engine stats store
+	enginesStatsStore := metrics.NewEngineStatsStore(100)
+
 	// Init scheduler (handles engine registration internally)
-	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie, traits)
+	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie, traits, enginesStatsStore)
 	if err != nil {
 		logger.Error("Failed to init scheduler", "error", err)
 		os.Exit(1)
@@ -252,7 +256,7 @@ func main() {
 
 	// Create server
 	srv := server.New(cfg, sched, acSvc, bangTrie, rateLimiter,
-		botDetector, limiterSvc, imageProxySvc, &favSvc, preferencesStore, localeReg)
+		botDetector, limiterSvc, imageProxySvc, &favSvc, preferencesStore, localeReg, enginesStatsStore)
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)

@@ -54,7 +54,7 @@ func builtInDefaults() Config {
 			HTTPProtocolVersion: "1.0",
 			Method:              "POST",
 			DefaultHTTPHeaders:  map[string]string{},
-			TrustedProxies:      []string{"127.0.0.0/8", "::1"},
+			TrustedProxies:      []string{"127.0.0.0/8", "::1/128"},
 		},
 		Outgoing: OutgoingConfig{
 			RequestTimeout:  3.0,

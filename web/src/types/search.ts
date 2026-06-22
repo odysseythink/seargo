@@ -273,6 +273,51 @@ export interface PreferencesResponse {
   doi_resolvers: string[];
 }
 
+export interface TimeStats {
+  p50: number;
+  p80: number;
+  p95: number;
+}
+
+export interface CountStats {
+  min: number;
+  max: number;
+  avg: number;
+}
+
+export interface EngineTimeSnapshot {
+  total: TimeStats;
+  http: TimeStats;
+  processing: TimeStats;
+}
+
+export interface EngineSnapshot {
+  engine: string;
+  reliability: number;
+  score: number;
+  time: EngineTimeSnapshot;
+  result_count: CountStats;
+  request_count: number;
+  success_count: number;
+  error_counts: Record<string, number>;
+  suspended: boolean;
+  last_error_at?: string;
+}
+
+export interface StatsEnginesResponse {
+  engines: EngineSnapshot[];
+}
+
+export interface ErrorEntry {
+  engine: string;
+  total_errors: number;
+  by_class: Record<string, number>;
+}
+
+export interface StatsErrorsResponse {
+  errors: ErrorEntry[];
+}
+
 export interface PreferencesUpdate {
   language?: string;
   locale?: string;
