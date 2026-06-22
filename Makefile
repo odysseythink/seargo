@@ -12,7 +12,7 @@ test:
 	go test -v -race -cover ./...
 
 run:
-	go run ./cmd/seargo -config configs/settings.yml
+	go run ./cmd/seargo -config configs/settings.yml -logtostderr
 
 clean:
 	rm -rf $(BUILD_DIR)/

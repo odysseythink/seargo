@@ -77,12 +77,15 @@ func main() {
 	configPath := flag.String("config", "configs/settings.yml", "Path to configuration file")
 	flag.Parse()
 
+	// Route mlog to stderr by default to avoid O_EXCL file-name collision
+	// within the same second (mlog upstream: logName omits severity tag).
+	_ = flag.Set("logtostderr", "true")
+
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
 	}
-	mlog.SetLogDir("logs")
 
 	mlog.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
 
