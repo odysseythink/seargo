@@ -12,34 +12,38 @@ import { AnswerBox } from './AnswerBox';
 import { KeyValueTable } from './KeyValueTable';
 import { InfoboxPanel } from './InfoboxPanel';
 
-interface Props { result: Result }
+interface Props {
+  result: Result;
+  index?: number;
+  resultsOnNewTab?: boolean;
+}
 
-export function ResultCard({ result }: Props) {
+export function ResultCard({ result, index, resultsOnNewTab }: Props) {
   switch (result.kind) {
     case 'image':
-      return <ImageCard result={result} />;
+      return <ImageCard result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'video':
-      return <VideoCard result={result} />;
+      return <VideoCard result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'news':
-      return <NewsResult result={result} />;
+      return <NewsResult result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'paper':
-      return <PaperCard result={result} />;
+      return <PaperCard result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'code':
-      return <CodeBlock result={result} />;
+      return <CodeBlock result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'file':
-      return <FileRow result={result} />;
+      return <FileRow result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'map':
-      return <MapCard result={result} />;
+      return <MapCard result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'music':
-      return <MusicCard result={result} />;
+      return <MusicCard result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'answer':
-      return <AnswerBox result={result} />;
+      return <AnswerBox result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'keyvalue':
-      return <KeyValueTable result={result} />;
+      return <KeyValueTable result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'infobox':
-      return <InfoboxPanel result={result} />;
+      return <InfoboxPanel result={result} index={index} resultsOnNewTab={resultsOnNewTab} />;
     case 'main':
     default:
-      return <MainResult result={result as import('../../types/search').MainResult} />;
+      return <MainResult result={result as import('../../types/search').MainResult} index={index} resultsOnNewTab={resultsOnNewTab} />;
   }
 }

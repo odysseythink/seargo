@@ -75,7 +75,7 @@ func New(cfg *config.Config, scheduler *search.Scheduler,
 	}
 
 	// 6. Limiter (optional, controlled by cfg.Server.Limiter)
-	if limiterSvc != nil {
+	if cfg.Server.Limiter && limiterSvc != nil {
 		r.Use(middleware.Limiter(cfg, limiterSvc))
 	}
 

@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/seargo/seargo/internal/answerer"
+	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/plugin"
 	"github.com/seargo/seargo/internal/preferences"
 )
@@ -46,21 +48,22 @@ type PreferencesResponse struct {
 	Themes       []string                    `json:"themes"`
 	Locales      []LocaleOption              `json:"locales"`
 	DOIResolvers []string                    `json:"doi_resolvers"`
+	Locked       []string                    `json:"locked"`
 }
 
 func (s *Server) handleGetPreferences(c *gin.Context) {
 	prefs := preferences.CtxPreferences(c)
 
 	resp := PreferencesResponse{
+		Plugins:      []PluginPrefItem{},
+		Answerers:    []AnswererPrefItem{},
 		Autocomplete: prefs.Autocomplete,
 		Settings:     *prefs,
-		Categories:   []string{"general", "images", "videos", "news", "map", "music", "it", "science", "files", "social_media"},
-		Themes:       []string{"simple"},
-		Locales: []LocaleOption{
-			{Tag: "en", Name: "English"},
-			{Tag: "zh-CN", Name: "简体中文"},
-		},
+		Categories:   categoryNames(s.config.CategoriesAsTabs),
+		Themes:       availableThemes(s.config.UI.ThemeArgs.SimpleStyle),
+		Locales:      buildLocaleList(s.localeRegistry),
 		DOIResolvers: []string{},
+		Locked:       s.config.Preferences.Lock,
 	}
 
 	if ps := plugin.GlobalPlugin(); ps != nil {
@@ -120,14 +123,14 @@ func (s *Server) handlePutPreferences(c *gin.Context) {
 	}
 
 	resp := PreferencesResponse{
+		Plugins:      []PluginPrefItem{},
+		Answerers:    []AnswererPrefItem{},
 		Autocomplete: next.Autocomplete,
 		Settings:     *next,
-		Categories:   []string{"general", "images", "videos", "news", "map", "music", "it", "science", "files", "social_media"},
-		Themes:       []string{"simple"},
-		Locales: []LocaleOption{
-			{Tag: "en", Name: "English"},
-			{Tag: "zh-CN", Name: "简体中文"},
-		},
+		Categories:   categoryNames(s.config.CategoriesAsTabs),
+		Themes:       availableThemes(s.config.UI.ThemeArgs.SimpleStyle),
+		Locales:      buildLocaleList(s.localeRegistry),
+		Locked:       s.config.Preferences.Lock,
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -158,6 +161,28 @@ func (s *Server) handleImportPreferences(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, next)
+}
+
+func categoryNames(tabs map[string]config.CategoryTabConfig) []string {
+	names := make([]string, 0, len(tabs))
+	for name := range tabs {
+		names = append(names, name)
+	}
+	return names
+}
+
+func buildLocaleList(registry *i18n.LocaleRegistry) []LocaleOption {
+	if registry != nil && len(registry.Supported) > 0 {
+		opts := make([]LocaleOption, 0, len(registry.Supported))
+		for _, loc := range registry.Supported {
+			opts = append(opts, LocaleOption{Tag: loc.Tag, Name: loc.Name})
+		}
+		return opts
+	}
+	return []LocaleOption{
+		{Tag: "en", Name: "English"},
+		{Tag: "zh-CN", Name: "简体中文"},
+	}
 }
 
 func isPluginDisabled(pluginID string, disabled []string) bool {

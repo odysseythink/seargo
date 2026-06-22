@@ -53,7 +53,7 @@ func (s *Server) setupRoutes() {
 	// Static files (React frontend)
 	dist, err := fs.Sub(web.Dist, "dist")
 	if err == nil {
-		fileServer := http.FileServer(http.FS(dist))
+		fileServer := http.FileServer(http.FS(&spaFileSystem{fs: dist}))
 		s.router.NoRoute(func(c *gin.Context) {
 			path := c.Request.URL.Path
 			if strings.HasPrefix(path, "/api/") || path == "/health" || path == "/metrics" {
@@ -62,6 +62,28 @@ func (s *Server) setupRoutes() {
 			fileServer.ServeHTTP(c.Writer, c.Request)
 		})
 	}
+}
+
+// spaFileSystem wraps an embed.FS and falls back to index.html for client-side
+// routes of the React single-page application. Actual static assets that are
+// missing still return their original error so broken assets do not silently
+// serve the HTML shell.
+type spaFileSystem struct {
+	fs fs.FS
+}
+
+func (s *spaFileSystem) Open(name string) (fs.File, error) {
+	f, err := s.fs.Open(name)
+	if err == nil {
+		return f, nil
+	}
+	if strings.HasPrefix(name, "assets/") ||
+		name == "favicon.svg" ||
+		name == "icons.svg" ||
+		strings.HasPrefix(name, "locales/") {
+		return nil, err
+	}
+	return s.fs.Open("index.html")
 }
 
 func (s *Server) handleSearch(c *gin.Context) {
@@ -237,6 +259,8 @@ func (s *Server) handleCategories(c *gin.Context) {
 
 func (s *Server) handleConfig(c *gin.Context) {
 	type configResponse struct {
+		Version     string                    `json:"version"`
+		Brand       brandConfigResponse       `json:"brand"`
 		General     generalConfigResponse     `json:"general"`
 		Search      searchConfigResponse      `json:"search"`
 		Server      serverConfigResponse      `json:"server"`
@@ -259,6 +283,23 @@ func (s *Server) handleConfig(c *gin.Context) {
 	}
 
 	resp := configResponse{
+		Version: "1.0.0",
+		Brand: brandConfigResponse{
+			IssueURL:        s.config.Brand.IssueURL,
+			DocsURL:         s.config.Brand.DocsURL,
+			PublicInstances: s.config.Brand.PublicInstances,
+			WikiURL:         s.config.Brand.WikiURL,
+			NewIssueURL:     s.config.Brand.NewIssueURL,
+			PWAColors: pwaColorsConfigResponse{
+				ThemeColorLight:      s.config.Brand.PWAColors.ThemeColorLight,
+				BackgroundColorLight: s.config.Brand.PWAColors.BackgroundColorLight,
+				ThemeColorDark:       s.config.Brand.PWAColors.ThemeColorDark,
+				BackgroundColorDark:  s.config.Brand.PWAColors.BackgroundColorDark,
+				ThemeColorBlack:      s.config.Brand.PWAColors.ThemeColorBlack,
+				BackgroundColorBlack: s.config.Brand.PWAColors.BackgroundColorBlack,
+			},
+			Links: s.config.Brand.Custom.Links,
+		},
 		General: generalConfigResponse{
 			InstanceName:  s.config.General.InstanceName,
 			Debug:         s.config.General.Debug,
@@ -294,11 +335,38 @@ func (s *Server) handleConfig(c *gin.Context) {
 			SimpleStyle:            s.config.UI.ThemeArgs.SimpleStyle,
 		},
 		Preferences: preferencesConfigResponse{
-			Lock: s.config.Preferences.Lock,
+			Lock:   s.config.Preferences.Lock,
+			Themes: availableThemes(s.config.UI.ThemeArgs.SimpleStyle),
 		},
 	}
 
 	c.JSON(http.StatusOK, resp)
+}
+
+type brandConfigResponse struct {
+	IssueURL        string                  `json:"issue_url"`
+	DocsURL         string                  `json:"docs_url"`
+	PublicInstances string                  `json:"public_instances"`
+	WikiURL         string                  `json:"wiki_url"`
+	NewIssueURL     string                  `json:"new_issue_url"`
+	PWAColors       pwaColorsConfigResponse `json:"pwa_colors"`
+	Links           map[string]string       `json:"links"`
+}
+
+type pwaColorsConfigResponse struct {
+	ThemeColorLight      string `json:"theme_color_light"`
+	BackgroundColorLight string `json:"background_color_light"`
+	ThemeColorDark       string `json:"theme_color_dark"`
+	BackgroundColorDark  string `json:"background_color_dark"`
+	ThemeColorBlack      string `json:"theme_color_black"`
+	BackgroundColorBlack string `json:"background_color_black"`
+}
+
+func availableThemes(simpleStyle string) []string {
+	if simpleStyle != "" && simpleStyle != "auto" {
+		return []string{simpleStyle}
+	}
+	return []string{"auto", "light", "dark", "black"}
 }
 
 type generalConfigResponse struct {
@@ -340,7 +408,8 @@ type uiConfigResponse struct {
 }
 
 type preferencesConfigResponse struct {
-	Lock []string `json:"lock"`
+	Lock   []string `json:"lock"`
+	Themes []string `json:"themes"`
 }
 
 func (s *Server) handleHealth(c *gin.Context) {

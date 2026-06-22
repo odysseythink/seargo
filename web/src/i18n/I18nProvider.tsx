@@ -1,5 +1,5 @@
 import { useEffect, useState, createContext, useContext } from "react";
-import i18n from "./config";
+import i18n, { initI18n } from "./config";
 import type { Config } from "../types/config";
 
 interface I18nContextValue {
@@ -21,6 +21,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function init() {
+      // Ensure i18next is initialized before loading translation bundles.
+      await initI18n("en");
+
       try {
         const res = await fetch("/api/config");
         const config: Config = await res.json();
@@ -58,6 +61,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
           if (enBundle) {
             i18n.addResourceBundle("en", "translation", enBundle, true, true);
           }
+          await i18n.changeLanguage("en");
         } catch {
           // No bundles available
         }

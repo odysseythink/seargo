@@ -199,10 +199,14 @@ export interface SearchState {
   answers: Answer[];
   corrections: string[];
   infoboxes: Infobox[];
+  suggestions: string[];
   isLoading: boolean;
   enginesUsed: string[];
   enginesFailed: string[];
   responseTimeMs: number;
+  total: number;
+  page: number;
+  pageSize: number;
   error: string | null;
   setQuery: (q: string) => void;
   search: (req: SearchRequest) => Promise<void>;
@@ -271,6 +275,7 @@ export interface PreferencesResponse {
   themes: string[];
   locales: { tag: string; name: string }[];
   doi_resolvers: string[];
+  locked: string[];
 }
 
 export interface TimeStats {

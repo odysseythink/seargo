@@ -1,25 +1,40 @@
 import type { NewsResult as NewsResultType } from '../../types/search';
 
-interface Props { result: NewsResultType }
+interface Props {
+  result: NewsResultType;
+  index?: number;
+  resultsOnNewTab?: boolean;
+}
 
-export function NewsResult({ result }: Props) {
+export function NewsResult({ result, index: _index, resultsOnNewTab }: Props) {
   return (
-    <div className="p-5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
-                    hover:border-[rgba(255,255,255,0.15)] transition-all duration-200">
-      <a href={result.url} target="_blank" rel="noopener noreferrer"
-         className="text-lg font-medium text-[#60a5fa] hover:text-[#93c5fd] hover:underline block mb-1">
-        {result.title}
-      </a>
-      <div className="flex items-center gap-2 text-xs text-[#6b7280] mb-2">
+    <article style={{
+      padding: '0.75rem 0',
+      borderBottom: '1px solid var(--color-result-border)',
+    }}>
+      <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 600 }}>
+        <a href={result.url}
+          target={resultsOnNewTab ? '_blank' : '_self'}
+          rel="noopener noreferrer"
+          style={{ color: 'var(--color-result-link)', textDecoration: 'none' }}
+          onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+          onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+        >
+          {result.title}
+        </a>
+      </h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--color-result-published-date)', marginBottom: '0.5rem' }}>
         {result.published_at && <span>{result.published_at}</span>}
         {result.engine && <span>· {result.engine}</span>}
       </div>
       {result.content && (
-        <p className="text-[#9ca3af] text-sm leading-relaxed">{result.content}</p>
+        <p style={{ color: 'var(--color-base-font)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>{result.content}</p>
       )}
-      <div className="mt-3 flex items-center gap-2">
-        <span className="text-xs text-[#22c55e] truncate">{result.url}</span>
+      <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-result-url)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {result.url}
+        </span>
       </div>
-    </div>
+    </article>
   );
 }

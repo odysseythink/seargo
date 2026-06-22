@@ -3,9 +3,11 @@ import type { InfoboxResult, Infobox } from '../../types/search';
 interface Props {
   result?: InfoboxResult;
   infobox?: Infobox;
+  index?: number;
+  resultsOnNewTab?: boolean;
 }
 
-export function InfoboxPanel({ result, infobox }: Props) {
+export function InfoboxPanel({ result, infobox, index: _index, resultsOnNewTab }: Props) {
   const title = infobox?.title || result?.title || '';
   const content = infobox?.content || result?.content || '';
   const engine = infobox?.engine || result?.engine || '';
@@ -16,41 +18,62 @@ export function InfoboxPanel({ result, infobox }: Props) {
   const srcUrl = infobox?.url || result?.url;
 
   return (
-    <div className="p-5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl">
-      <div className="flex items-start gap-4">
+    <div style={{
+      padding: '1rem',
+      backgroundColor: 'var(--color-sidebar-background)',
+      border: '1px solid var(--color-sidebar-border)',
+      borderRadius: '8px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
         {imgSrc && (
           <img src={imgSrc} alt={title}
-               className="w-20 h-20 object-cover rounded-lg flex-shrink-0" />
+            style={{ width: '5rem', height: '5rem', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
         )}
-        <div className="flex-1 min-w-0">
+        <div style={{ flex: 1, minWidth: 0 }}>
           {title && (
-            <h3 className="text-lg font-semibold text-[#e5e5e5] mb-1">{title}</h3>
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-base-font)', margin: '0 0 0.25rem' }}>{title}</h3>
           )}
           {content && (
-            <p className="text-sm text-[#9ca3af] leading-relaxed mb-3">{content}</p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--color-base-font)', lineHeight: 1.6, margin: '0 0 0.75rem' }}>{content}</p>
           )}
           {attributes && attributes.length > 0 && (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm mb-3">
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto 1fr',
+              gap: '0.25rem 1rem',
+              fontSize: '0.875rem',
+              marginBottom: '0.75rem',
+            }}>
               {attributes.map((attr, i) => (
-                <div key={i} className="contents">
-                  <dt className="text-[#6b7280]">{attr.label}</dt>
-                  <dd className="text-[#e5e5e5]">
+                <div key={i} style={{ display: 'contents' }}>
+                  <dt style={{ color: 'var(--color-result-published-date)' }}>{attr.label}</dt>
+                  <dd style={{ color: 'var(--color-base-font)', margin: 0 }}>
                     {attr.url ? (
-                      <a href={attr.url} target="_blank" rel="noopener noreferrer"
-                         className="text-[#60a5fa] hover:underline">{attr.value}</a>
+                      <a href={attr.url}
+                        target={resultsOnNewTab ? '_blank' : '_self'}
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--color-result-link)', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+                        onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+                      >{attr.value}</a>
                     ) : attr.value}
                   </dd>
                 </div>
               ))}
-            </dl>
+            </div>
           )}
           {urls && urls.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-[#6b7280] mb-1 font-medium">Links</p>
-              <div className="flex flex-wrap gap-2">
+            <div style={{ marginBottom: '0.75rem' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-result-published-date)', marginBottom: '0.25rem', fontWeight: 500 }}>Links</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {urls.map((u, i) => (
-                  <a key={i} href={u.url} target="_blank" rel="noopener noreferrer"
-                     className="text-xs text-[#60a5fa] hover:underline">
+                  <a key={i} href={u.url}
+                    target={resultsOnNewTab ? '_blank' : '_self'}
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '0.75rem', color: 'var(--color-result-link)', textDecoration: 'none' }}
+                    onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+                    onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+                  >
                     {u.title}
                   </a>
                 ))}
@@ -59,11 +82,19 @@ export function InfoboxPanel({ result, infobox }: Props) {
           )}
           {relatedTopics && relatedTopics.length > 0 && (
             <div>
-              <p className="text-xs text-[#6b7280] mb-1 font-medium">Related</p>
-              <div className="flex flex-wrap gap-1">
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-result-published-date)', marginBottom: '0.25rem', fontWeight: 500 }}>Related</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                 {relatedTopics.map((topic, i) => (
-                  <span key={i}
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[#2d1b69] text-[#a78bfa]">
+                  <span key={i} style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0.125rem 0.5rem',
+                    borderRadius: '999px',
+                    fontSize: '0.75rem',
+                    color: 'var(--color-result-link)',
+                    backgroundColor: 'var(--color-sidebar-background)',
+                    border: '1px solid var(--color-sidebar-border)',
+                  }}>
                     {topic}
                   </span>
                 ))}
@@ -71,11 +102,16 @@ export function InfoboxPanel({ result, infobox }: Props) {
             </div>
           )}
           {engine && (
-            <div className="mt-3 text-xs text-[#6b7280]">{engine}</div>
+            <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>{engine}</div>
           )}
           {srcUrl && (
-            <a href={srcUrl} target="_blank" rel="noopener noreferrer"
-               className="mt-1 inline-block text-xs text-[#22c55e] hover:underline">
+            <a href={srcUrl}
+              target={resultsOnNewTab ? '_blank' : '_self'}
+              rel="noopener noreferrer"
+              style={{ marginTop: '0.25rem', display: 'inline-block', fontSize: '0.75rem', color: 'var(--color-result-url)', textDecoration: 'none' }}
+              onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+              onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+            >
               Learn more
             </a>
           )}

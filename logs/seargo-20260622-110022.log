@@ -1,0 +1,21 @@
+Log file created at: 2026/06/22 11:00:22
+Running on machine: ranweideMac-mini
+Binary: Built with gc go1.26.3 for darwin/arm64
+Previous log: <none>
+Log line format: [yyyy-mm-dd hh:mm:ss.uuuuuu][IWEF][threadid][file function:line] msg
+[2026-06-22 11:00:22.422008][I][  29936][main.go main:80] Starting SearGoconfigconfigs/settings.ymlport8080
+[2026-06-22 11:00:22.428660][I][  29936][main.go loadEngineTraits:65] Loaded engine traitsengines45
+[2026-06-22 11:00:22.428739][I][  29936][main.go main:161] Engines loadedcategories2shortcuts6
+[2026-06-22 11:00:22.438951][I][  29936][scheduler.go NewScheduler:116] Engine registeredenginegoogle
+[2026-06-22 11:00:22.438967][I][  29936][scheduler.go NewScheduler:116] Engine registeredenginebing
+[2026-06-22 11:00:22.438970][I][  29936][scheduler.go NewScheduler:116] Engine registeredengineduckduckgo
+[2026-06-22 11:00:22.438972][I][  29936][scheduler.go NewScheduler:116] Engine registeredenginebrave
+[2026-06-22 11:00:22.438974][I][  29936][scheduler.go NewScheduler:116] Engine registeredenginewikipedia
+[2026-06-22 11:00:22.438975][I][  29936][scheduler.go NewScheduler:116] Engine registeredengineyahoo
+[2026-06-22 11:00:45.169562][I][  29936][request_logger.go func4:24] http_requestrequest_idb6566c4c-67dd-4e10-b779-a2a1318efc3dmethodGETpath/status200duration_ms3client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:00:45.184458][I][  29936][request_logger.go func4:24] http_requestrequest_id7085f2d2-372a-45d5-9227-9063f518dacbmethodGETpath/assets/index-DVoIrgTA.jsstatus429duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:00:45.184468][I][  29936][request_logger.go func4:24] http_requestrequest_id66669522-d655-465b-b752-55be7b53e90amethodGETpath/assets/index-CxmxEH4d.cssstatus429duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:00:45.191157][I][  29936][request_logger.go func4:24] http_requestrequest_ide9eb1629-60c0-4e1a-b014-314f8e6f8068methodGETpath/favicon.svgstatus429duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:04:40.657749][I][  29936][request_logger.go func4:24] http_requestrequest_id2ddd8e22-4f0e-47ad-97b5-9e561f9967d9methodGETpath/status429duration_ms0client_ip127.0.0.1user_agentcurl/8.7.1
+[2026-06-22 11:04:40.672981][I][  29936][request_logger.go func4:24] http_requestrequest_id885b07dc-12de-4ca2-8dd0-ca66296f8493methodGETpath/status429duration_ms0client_ip127.0.0.1user_agentcurl/8.7.1
+[2026-06-22 11:04:40.686215][I][  29936][request_logger.go func4:24] http_requestrequest_id3026d4dd-cf1b-408e-8b46-7cd41ceadbb0methodGETpath/assets/index-DVoIrgTA.jsstatus429duration_ms0client_ip127.0.0.1user_agentcurl/8.7.1

@@ -2,9 +2,11 @@ import type { MainResult as MainResultType } from '../../types/search';
 
 interface Props {
   result: MainResultType;
+  index?: number;
+  resultsOnNewTab?: boolean;
 }
 
-export function MainResult({ result }: Props) {
+export function MainResult({ result, index: _index, resultsOnNewTab }: Props) {
   const engineColors: Record<string, string> = {
     google: '#ea4335', bing: '#00809d', duckduckgo: '#de5833',
     brave: '#fb542b', wikipedia: '#3366cc', yahoo: '#6001d2',
@@ -12,28 +14,68 @@ export function MainResult({ result }: Props) {
   const color = engineColors[result.engine?.toLowerCase()] || '#6b7280';
 
   return (
-    <div className="p-5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
-                    hover:border-[rgba(255,255,255,0.15)] transition-all duration-200">
-      {result.thumbnail_url && (
-        <img src={result.thumbnail_url} alt="" className="w-16 h-16 object-cover rounded mb-2 float-right ml-2" />
-      )}
-      <a href={result.url} target="_blank" rel="noopener noreferrer"
-         className="text-lg font-medium text-[#60a5fa] hover:text-[#93c5fd] hover:underline block mb-1">
-        {result.title}
-      </a>
-      <p className="text-[#22c55e] text-sm mb-2 truncate">{result.url}</p>
+    <article style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--color-result-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+        {result.favicon && (
+          <img src={result.favicon} alt=""
+            style={{ width: '1rem', height: '1rem' }}
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+        )}
+        <span style={{
+          color: 'var(--color-result-url)',
+          fontSize: '0.8rem',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}>
+          {result.url}
+        </span>
+      </div>
+      <h3 style={{ margin: '0.25rem 0', fontSize: '1rem', fontWeight: 600 }}>
+        <a href={result.url}
+          target={resultsOnNewTab ? '_blank' : '_self'}
+          rel="noreferrer"
+          style={{ color: 'var(--color-result-link)', textDecoration: 'none' }}
+          onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+          onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+        >
+          {result.title}
+        </a>
+      </h3>
       {result.content && (
-        <p className="text-[#9ca3af] text-sm leading-relaxed">{result.content}</p>
+        <p style={{
+          margin: '0.25rem 0',
+          fontSize: '0.85rem',
+          color: 'var(--color-base-font)',
+          lineHeight: 1.5
+        }}>
+          {result.content}
+        </p>
       )}
-      <div className="mt-3 flex items-center gap-2">
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white"
-              style={{ backgroundColor: color }}>
+      {result.published_at && (
+        <time style={{ fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>
+          {new Date(result.published_at).toLocaleDateString()}
+        </time>
+      )}
+      <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          padding: '0.125rem 0.5rem',
+          borderRadius: '999px',
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          color: '#fff',
+          backgroundColor: color,
+        }}>
           {result.engine}
         </span>
         {result.score > 0 && (
-          <span className="text-xs text-[#6b7280]">Score: {result.score.toFixed(2)}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>
+            Score: {result.score.toFixed(2)}
+          </span>
         )}
       </div>
-    </div>
+    </article>
   );
 }

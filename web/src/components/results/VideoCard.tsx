@@ -1,29 +1,75 @@
 import type { VideoResult } from '../../types/search';
 
-interface Props { result: VideoResult }
+interface Props {
+  result: VideoResult;
+  index?: number;
+  resultsOnNewTab?: boolean;
+}
 
-export function VideoCard({ result }: Props) {
+export function VideoCard({ result, index: _index, resultsOnNewTab }: Props) {
   const duration = result.extra?.duration || result.extra?.length;
   return (
-    <a href={result.url} target="_blank" rel="noopener noreferrer"
-       className="block group cursor-pointer">
-      <div className="relative aspect-video bg-[#1a1a1a] rounded-xl overflow-hidden border border-[rgba(255,255,255,0.08)]">
+    <a href={result.url}
+      target={resultsOnNewTab ? '_blank' : '_self'}
+      rel="noopener noreferrer"
+      style={{ display: 'block', cursor: 'pointer', textDecoration: 'none' }}>
+      <div style={{
+        position: 'relative',
+        aspectRatio: '16/9',
+        backgroundColor: 'var(--color-result-background)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: '1px solid var(--color-result-border)',
+      }}>
         {result.extra?.thumbnail ? (
           <>
             <img src={result.extra.thumbnail} alt={result.title}
-                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transition: 'transform 0.3s',
+              }}
+              onMouseEnter={e => (e.target as HTMLElement).style.transform = 'scale(1.05)'}
+              onMouseLeave={e => (e.target as HTMLElement).style.transform = 'scale(1)'}
+            />
             {duration && (
-              <span className="absolute bottom-2 right-2 px-2 py-0.5 bg-black/70 text-white text-xs rounded">
+              <span style={{
+                position: 'absolute',
+                bottom: '0.5rem',
+                right: '0.5rem',
+                padding: '0.125rem 0.5rem',
+                backgroundColor: 'rgba(0,0,0,0.7)',
+                color: '#fff',
+                fontSize: '0.75rem',
+                borderRadius: '4px',
+              }}>
                 {duration}
               </span>
             )}
           </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[#6b7280] text-sm">No thumbnail</div>
+          <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-result-published-date)',
+            fontSize: '0.875rem',
+          }}>No thumbnail</div>
         )}
       </div>
-      <p className="mt-1 text-sm text-[#e5e5e5] truncate font-medium">{result.title}</p>
-      <div className="flex items-center gap-2 text-xs text-[#6b7280]">
+      <p style={{
+        marginTop: '0.25rem',
+        fontSize: '0.875rem',
+        color: 'var(--color-base-font)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        fontWeight: 500,
+      }}>{result.title}</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>
         {result.extra?.author && <span>{result.extra.author}</span>}
         {result.extra?.upload_date && <span>{result.extra.upload_date}</span>}
         {result.extra?.view_count !== undefined && (

@@ -30,20 +30,33 @@ func AllCategories() []Category {
 }
 
 type Request struct {
-	Query      string   `form:"q" binding:"required"`
-	Category   Category `form:"category"`
-	Language   string   `form:"language"`
-	SafeSearch int      `form:"safesearch"`
-	TimeRange  string   `form:"time_range"`
-	Page       int      `form:"page"`
-	PageSize   int      `form:"page_size"`
+	Query      string     `form:"q" binding:"required"`
+	Category   Category   `form:"category"`
+	Categories []Category `form:"categories"`
+	Language   string     `form:"language"`
+	Locale     string     `form:"locale"`
+	SafeSearch int        `form:"safesearch"`
+	TimeRange  string     `form:"time_range"`
+	Page       int        `form:"page"`
+	PageSize   int        `form:"page_size"`
 }
 
 func (r *Request) CacheKey() string {
 	h := fnv.New64a()
 	h.Write([]byte(r.Query))
-	return fmt.Sprintf("search:%s:%s:%d:%s:%d:%d:%x",
-		r.Category, r.Language, r.SafeSearch,
+	cats := r.Categories
+	if len(cats) == 0 && r.Category != "" {
+		cats = []Category{r.Category}
+	}
+	catStr := ""
+	for _, c := range cats {
+		if catStr != "" {
+			catStr += ","
+		}
+		catStr += string(c)
+	}
+	return fmt.Sprintf("search:%s:%s:%s:%d:%s:%d:%d:%x",
+		catStr, r.Language, r.Locale, r.SafeSearch,
 		r.TimeRange, r.Page, r.PageSize, h.Sum64())
 }
 
@@ -58,8 +71,15 @@ func (r *Request) Normalize(d NormalizeDefaults) {
 	if r.Language == "" {
 		r.Language = d.DefaultLang
 	}
+	if len(r.Categories) == 0 {
+		if r.Category != "" {
+			r.Categories = []Category{r.Category}
+		} else {
+			r.Categories = []Category{d.DefaultCategory}
+		}
+	}
 	if r.Category == "" {
-		r.Category = d.DefaultCategory
+		r.Category = r.Categories[0]
 	}
 	if r.PageSize <= 0 {
 		r.PageSize = d.DefaultPageSize
@@ -160,10 +180,10 @@ type Response struct {
 	Category       Category       `json:"category"`
 	Results        []Result       `json:"results"`
 	Suggestions    []string       `json:"suggestions"`
-	Answers        []Answer       `json:"answers,omitempty"`
-	Corrections    []string       `json:"corrections,omitempty"`
-	Infoboxes      []Infobox      `json:"infoboxes,omitempty"`
-	EngineData     map[string]any `json:"engine_data,omitempty"`
+	Answers        []Answer       `json:"answers"`
+	Corrections    []string       `json:"corrections"`
+	Infoboxes      []Infobox      `json:"infoboxes"`
+	EngineData     map[string]any `json:"engine_data"`
 	Total          int            `json:"total"`
 	Page           int            `json:"page"`
 	PageSize       int            `json:"page_size"`

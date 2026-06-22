@@ -4,13 +4,18 @@ import type { EngineSnapshot, ErrorEntry } from "../types/search";
 
 function ReliabilityBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
-  const color =
-    pct >= 90 ? "bg-green-500" : pct >= 70 ? "bg-yellow-500" : "bg-red-500";
+  const bgColor =
+    pct >= 90 ? 'var(--color-engine-success)' : pct >= 70 ? 'var(--color-engine-warning)' : 'var(--color-engine-error)';
   return (
-    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded h-4">
+    <div style={{ width: '100%', backgroundColor: 'var(--color-result-border)', borderRadius: '0.25rem', height: '1rem' }}>
       <div
-        className={`h-4 rounded ${color} transition-all duration-300`}
-        style={{ width: `${pct}%` }}
+        style={{
+          height: '1rem',
+          borderRadius: '0.25rem',
+          backgroundColor: bgColor,
+          transition: 'width 0.3s ease',
+          width: `${pct}%`,
+        }}
         title={`${pct}% reliable`}
       />
     </div>
@@ -42,16 +47,23 @@ export default function StatsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <div style={{
+          width: '2rem',
+          height: '2rem',
+          border: '2px solid var(--color-result-border)',
+          borderTopColor: 'var(--color-result-link)',
+          borderRadius: '50%',
+          animation: 'spin 0.6s linear infinite',
+        }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-red-600 dark:text-red-400">
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <p style={{ color: 'var(--color-engine-error)' }}>
           Failed to load stats: {error}
         </p>
       </div>
@@ -64,33 +76,44 @@ export default function StatsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">
+    <div style={{ maxWidth: '56rem', margin: '0 auto', padding: '1rem' }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--color-base-font)' }}>
         Engine Statistics
       </h1>
 
       {engines.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <p className="text-lg">No data</p>
-          <p className="text-sm mt-2">
+        <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-result-url)' }}>
+          <p style={{ fontSize: '1.125rem' }}>No data</p>
+          <p style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
             Perform a search to start collecting engine metrics.
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(22rem, 1fr))' }}>
           {engines.map((eng) => {
             const err = errorMap.get(eng.engine);
             return (
               <div
                 key={eng.engine}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-white dark:bg-gray-800"
+                style={{
+                  border: '1px solid var(--color-result-border)',
+                  borderRadius: '0.5rem',
+                  padding: '1rem',
+                  backgroundColor: 'var(--color-result-background)',
+                }}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="font-semibold text-lg text-gray-900 dark:text-gray-100 capitalize">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <h2 style={{ fontWeight: 600, fontSize: '1.125rem', color: 'var(--color-base-font)', textTransform: 'capitalize' }}>
                     {eng.engine}
                   </h2>
                   {eng.suspended && (
-                    <span className="px-2 py-0.5 text-xs bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded">
+                    <span style={{
+                      padding: '0.125rem 0.5rem',
+                      fontSize: '0.75rem',
+                      backgroundColor: 'var(--color-engine-error-background)',
+                      color: 'var(--color-engine-error)',
+                      borderRadius: '0.25rem',
+                    }}>
                       Suspended
                     </span>
                   )}
@@ -98,51 +121,57 @@ export default function StatsPage() {
 
                 <ReliabilityBar value={eng.reliability} />
 
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <div style={{ marginTop: '0.75rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.875rem' }}>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span style={{ color: 'var(--color-result-url)' }}>
                       Reliability
                     </span>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <p style={{ fontWeight: 500, color: 'var(--color-base-font)' }}>
                       {Math.round(eng.reliability * 100)}%
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span style={{ color: 'var(--color-result-url)' }}>
                       Avg Score
                     </span>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <p style={{ fontWeight: 500, color: 'var(--color-base-font)' }}>
                       {eng.score.toFixed(2)}
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span style={{ color: 'var(--color-result-url)' }}>
                       Requests
                     </span>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <p style={{ fontWeight: 500, color: 'var(--color-base-font)' }}>
                       {eng.request_count}
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span style={{ color: 'var(--color-result-url)' }}>
                       P50 Total
                     </span>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                    <p style={{ fontWeight: 500, color: 'var(--color-base-font)' }}>
                       {formatMs(eng.time.total.p50)}
                     </p>
                   </div>
                 </div>
 
                 {err && (
-                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-result-border)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-result-url)' }}>
                       Errors
                     </span>
-                    <div className="flex flex-wrap gap-1 mt-1">
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.25rem' }}>
                       {Object.entries(err.by_class).map(([cls, count]) => (
                         <span
                           key={cls}
-                          className="px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded"
+                          style={{
+                            padding: '0.125rem 0.5rem',
+                            fontSize: '0.75rem',
+                            backgroundColor: 'var(--color-engine-error-background)',
+                            color: 'var(--color-engine-error)',
+                            borderRadius: '0.25rem',
+                          }}
                         >
                           {cls}: {count}
                         </span>

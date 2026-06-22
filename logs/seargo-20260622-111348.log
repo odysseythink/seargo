@@ -1,0 +1,26 @@
+Log file created at: 2026/06/22 11:13:48
+Running on machine: ranweideMac-mini
+Binary: Built with gc go1.26.3 for darwin/arm64
+Previous log: <none>
+Log line format: [yyyy-mm-dd hh:mm:ss.uuuuuu][IWEF][threadid][file function:line] msg
+[2026-06-22 11:13:48.631333][I][  32922][main.go main:80] Starting SearGoconfigconfigs/settings.ymlport8080
+[2026-06-22 11:13:48.638393][I][  32922][main.go loadEngineTraits:65] Loaded engine traitsengines45
+[2026-06-22 11:13:48.638464][I][  32922][main.go main:161] Engines loadedcategories2shortcuts6
+[2026-06-22 11:13:48.649246][I][  32922][scheduler.go NewScheduler:116] Engine registeredenginegoogle
+[2026-06-22 11:13:48.649305][I][  32922][scheduler.go NewScheduler:116] Engine registeredenginebing
+[2026-06-22 11:13:48.649308][I][  32922][scheduler.go NewScheduler:116] Engine registeredengineduckduckgo
+[2026-06-22 11:13:48.649311][I][  32922][scheduler.go NewScheduler:116] Engine registeredenginebrave
+[2026-06-22 11:13:48.649313][I][  32922][scheduler.go NewScheduler:116] Engine registeredenginewikipedia
+[2026-06-22 11:13:48.649314][I][  32922][scheduler.go NewScheduler:116] Engine registeredengineyahoo
+[2026-06-22 11:13:53.168904][I][  32922][request_logger.go func4:24] http_requestrequest_id61c5a6c2-cee1-4ea1-ae51-254d09f9b029methodGETpath/status429duration_ms0client_ip127.0.0.1user_agentcurl/8.7.1
+[2026-06-22 11:13:53.182306][I][  32922][request_logger.go func4:24] http_requestrequest_id4d0cc2fc-9e09-486d-9c9f-c3d540403e01methodGETpath/locales/zh-CN.jsonstatus200duration_ms1client_ip127.0.0.1user_agentcurl/8.7.1
+[2026-06-22 11:13:53.192010][I][  32922][request_logger.go func4:24] http_requestrequest_idc778316f-2738-421d-8a5c-1ffde939f84emethodGETpath/locales/zh-CN.jsonstatus200duration_ms0client_ip127.0.0.1user_agentcurl/8.7.1
+[2026-06-22 11:13:56.876090][I][  32922][request_logger.go func4:24] http_requestrequest_id6e5484ef-a6c6-4a8a-8111-1477d001f934methodGETpath/status200duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:13:56.883762][I][  32922][request_logger.go func4:24] http_requestrequest_id7ff330db-a509-40cb-a01e-10af03734813methodGETpath/assets/index-CxmxEH4d.cssstatus200duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:13:56.884200][I][  32922][request_logger.go func4:24] http_requestrequest_ide35164c5-277c-4c65-a7e2-1c5711a9b0dfmethodGETpath/assets/index-UiK5nSm6.jsstatus200duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:13:56.904684][I][  32922][request_logger.go func4:24] http_requestrequest_id4ba06161-9e73-4f9a-beee-cf7aa6c5abb0methodGETpath/api/configstatus429duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:13:56.906125][I][  32922][request_logger.go func4:24] http_requestrequest_id091d3037-fabd-4136-86fe-3f488c45942amethodGETpath/locales/en.jsonstatus200duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:13:56.907267][I][  32922][request_logger.go func4:24] http_requestrequest_id3eb1b9aa-f12a-4c82-9699-7c81d17a3cb0methodGETpath/locales/en.jsonstatus200duration_ms0client_ip127.0.0.1user_agentMozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36
+[2026-06-22 11:14:40.198382][I][  32922][main.go main:269] Shutting down server...
+[2026-06-22 11:14:40.198563][E][  32922][main.go func1:263] Server failed to starterrorhttp: Server closed
+[2026-06-22 11:14:40.198875][I][  32922][main.go main:278] Server exited

@@ -72,6 +72,7 @@ func TestRequestNormalize(t *testing.T) {
 	r1.Normalize(defaults)
 	assert.Equal(t, "en", r1.Language)
 	assert.Equal(t, CategoryGeneral, r1.Category)
+	assert.Equal(t, []Category{CategoryGeneral}, r1.Categories)
 	assert.Equal(t, 10, r1.PageSize)
 	assert.Equal(t, 1, r1.Page)
 
@@ -84,6 +85,7 @@ func TestRequestNormalize(t *testing.T) {
 	r2.Normalize(defaults)
 	assert.Equal(t, "zh-CN", r2.Language)
 	assert.Equal(t, CategoryImages, r2.Category)
+	assert.Equal(t, []Category{CategoryImages}, r2.Categories)
 	assert.Equal(t, 20, r2.PageSize)
 	assert.Equal(t, 3, r2.Page)
 
@@ -101,6 +103,51 @@ func TestRequestNormalize(t *testing.T) {
 	r5 := &Request{Query: "test", Page: -1}
 	r5.Normalize(defaults)
 	assert.Equal(t, 1, r5.Page)
+}
+
+func TestRequestNormalize_MultiCategory(t *testing.T) {
+	defaults := NormalizeDefaults{
+		DefaultLang:     "en",
+		DefaultCategory: CategoryGeneral,
+		DefaultPageSize: 10,
+		MaxResults:      50,
+	}
+
+	r := &Request{
+		Query:      "test",
+		Categories: []Category{CategoryImages, CategoryNews},
+	}
+	r.Normalize(defaults)
+	assert.Equal(t, []Category{CategoryImages, CategoryNews}, r.Categories)
+	assert.Equal(t, CategoryImages, r.Category)
+}
+
+func TestRequestNormalize_SingleCategory(t *testing.T) {
+	defaults := NormalizeDefaults{
+		DefaultLang:     "en",
+		DefaultCategory: CategoryGeneral,
+		DefaultPageSize: 10,
+		MaxResults:      50,
+	}
+
+	r := &Request{Query: "test", Category: CategoryVideos}
+	r.Normalize(defaults)
+	assert.Equal(t, CategoryVideos, r.Category)
+	assert.Equal(t, []Category{CategoryVideos}, r.Categories)
+}
+
+func TestRequestNormalize_Locale(t *testing.T) {
+	defaults := NormalizeDefaults{
+		DefaultLang:     "en",
+		DefaultCategory: CategoryGeneral,
+		DefaultPageSize: 10,
+		MaxResults:      50,
+	}
+
+	r := &Request{Query: "test", Locale: "zh-CN"}
+	r.Normalize(defaults)
+	assert.Equal(t, "zh-CN", r.Locale)
+	assert.Equal(t, "en", r.Language)
 }
 
 func TestCategoryValues(t *testing.T) {
@@ -266,6 +313,9 @@ func TestResponseNewFieldsOmitEmpty(t *testing.T) {
 	resp := Response{Query: "test", Results: []Result{}}
 	data, err := json.Marshal(resp)
 	assert.NoError(t, err)
-	assert.NotContains(t, string(data), `"answers"`)
+	assert.Contains(t, string(data), `"answers"`)
+	assert.Contains(t, string(data), `"corrections"`)
+	assert.Contains(t, string(data), `"infoboxes"`)
+	assert.Contains(t, string(data), `"engine_data"`)
 	assert.NotContains(t, string(data), `"redirect_url"`)
 }

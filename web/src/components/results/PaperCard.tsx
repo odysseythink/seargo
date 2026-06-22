@@ -1,42 +1,70 @@
 import type { PaperResult } from '../../types/search';
 
-interface Props { result: PaperResult }
+interface Props {
+  result: PaperResult;
+  index?: number;
+  resultsOnNewTab?: boolean;
+}
 
-export function PaperCard({ result }: Props) {
+export function PaperCard({ result, index: _index, resultsOnNewTab }: Props) {
   const extra = result.extra;
   return (
-    <div className="p-5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
-                    hover:border-[rgba(255,255,255,0.15)] transition-all duration-200">
-      <a href={result.url} target="_blank" rel="noopener noreferrer"
-         className="text-lg font-medium text-[#60a5fa] hover:text-[#93c5fd] hover:underline block mb-1">
-        {result.title}
-      </a>
+    <article style={{
+      padding: '0.75rem 0',
+      borderBottom: '1px solid var(--color-result-border)',
+    }}>
+      <h3 style={{ margin: '0 0 0.25rem', fontSize: '1rem', fontWeight: 600 }}>
+        <a href={result.url}
+          target={resultsOnNewTab ? '_blank' : '_self'}
+          rel="noopener noreferrer"
+          style={{ color: 'var(--color-result-link)', textDecoration: 'none' }}
+          onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+          onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+        >
+          {result.title}
+        </a>
+      </h3>
       {extra?.authors && extra.authors.length > 0 && (
-        <p className="text-sm text-[#9ca3af] mb-1">{extra.authors.join(', ')}</p>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-base-font)', margin: '0 0 0.25rem' }}>{extra.authors.join(', ')}</p>
       )}
       {extra?.journal && (
-        <p className="text-sm text-[#6b7280] italic mb-1">{extra.journal}</p>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-result-published-date)', fontStyle: 'italic', margin: '0 0 0.25rem' }}>{extra.journal}</p>
       )}
       {result.content && (
-        <p className="text-[#9ca3af] text-sm leading-relaxed mt-1">{result.content}</p>
+        <p style={{ color: 'var(--color-base-font)', fontSize: '0.875rem', lineHeight: 1.6, margin: '0.25rem 0' }}>{result.content}</p>
       )}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
         {extra?.doi && (
-          <a href={`https://doi.org/${extra.doi}`} target="_blank" rel="noopener noreferrer"
-             className="text-xs text-[#60a5fa] hover:underline">DOI: {extra.doi}</a>
+          <a href={`https://doi.org/${extra.doi}`}
+            target={resultsOnNewTab ? '_blank' : '_self'}
+            rel="noopener noreferrer"
+            style={{ fontSize: '0.75rem', color: 'var(--color-result-link)', textDecoration: 'none' }}
+            onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+            onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+          >DOI: {extra.doi}</a>
         )}
         {extra?.publisher && (
-          <span className="text-xs text-[#6b7280]">{extra.publisher}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>{extra.publisher}</span>
         )}
         {extra?.type && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#2d1b69] text-[#a78bfa]">
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.125rem 0.5rem',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            backgroundColor: 'var(--color-result-background)',
+            color: 'var(--color-result-link)',
+            border: '1px solid var(--color-result-border)',
+          }}>
             {extra.type}
           </span>
         )}
         {result.engine && (
-          <span className="text-xs text-[#6b7280]">{result.engine}</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>{result.engine}</span>
         )}
       </div>
-    </div>
+    </article>
   );
 }

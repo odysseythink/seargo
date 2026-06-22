@@ -1,25 +1,62 @@
 import type { ImageResult } from '../../types/search';
 
-interface Props { result: ImageResult }
+interface Props {
+  result: ImageResult;
+  index?: number;
+  resultsOnNewTab?: boolean;
+}
 
-export function ImageCard({ result }: Props) {
+export function ImageCard({ result, index: _index, resultsOnNewTab }: Props) {
   const imgSrc = result.extra?.img_src || result.thumbnail_url || '';
   const title = result.title || 'Image';
   return (
-    <a href={result.url} target="_blank" rel="noopener noreferrer"
-       className="block group cursor-pointer">
-      <div className="aspect-[4/3] bg-[#1a1a1a] rounded-xl overflow-hidden border border-[rgba(255,255,255,0.08)]">
+    <a href={result.url}
+      target={resultsOnNewTab ? '_blank' : '_self'}
+      rel="noopener noreferrer"
+      style={{ display: 'block', cursor: 'pointer', textDecoration: 'none' }}>
+      <div style={{
+        aspectRatio: '4/3',
+        backgroundColor: 'var(--color-result-background)',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: '1px solid var(--color-result-border)',
+      }}>
         {imgSrc ? (
           <img src={imgSrc} alt={title}
-               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: 'transform 0.3s',
+            }}
+            onMouseEnter={e => (e.target as HTMLElement).style.transform = 'scale(1.05)'}
+            onMouseLeave={e => (e.target as HTMLElement).style.transform = 'scale(1)'}
+          />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-[#6b7280] text-sm">No image</div>
+          <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--color-result-published-date)',
+            fontSize: '0.875rem',
+          }}>No image</div>
         )}
       </div>
       {result.extra?.resolution && (
-        <p className="mt-1 text-xs text-[#6b7280]">{result.extra.resolution}</p>
+        <p style={{ marginTop: '0.25rem', fontSize: '0.75rem', color: 'var(--color-result-published-date)' }}>
+          {result.extra.resolution}
+        </p>
       )}
-      <p className="mt-1 text-sm text-[#9ca3af] truncate">{title}</p>
+      <p style={{
+        marginTop: '0.25rem',
+        fontSize: '0.875rem',
+        color: 'var(--color-result-url)',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}>{title}</p>
     </a>
   );
 }

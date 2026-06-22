@@ -1,0 +1,15 @@
+Log file created at: 2026/06/22 14:00:30
+Running on machine: ranweideMac-mini
+Binary: Built with gc go1.26.3 for darwin/arm64
+Previous log: <none>
+Log line format: [yyyy-mm-dd hh:mm:ss.uuuuuu][IWEF][threadid][file function:line] msg
+[2026-06-22 14:00:30.702381][I][  47415][main.go main:80] Starting SearGoconfigconfigs/settings.ymlport8080
+[2026-06-22 14:00:30.706784][I][  47415][main.go loadEngineTraits:65] Loaded engine traitsengines45
+[2026-06-22 14:00:30.706810][I][  47415][main.go main:161] Engines loadedcategories2shortcuts6
+[2026-06-22 14:00:30.714383][I][  47415][scheduler.go NewScheduler:116] Engine registeredenginegoogle
+[2026-06-22 14:00:30.714390][I][  47415][scheduler.go NewScheduler:116] Engine registeredenginebing
+[2026-06-22 14:00:30.714393][I][  47415][scheduler.go NewScheduler:116] Engine registeredengineduckduckgo
+[2026-06-22 14:00:30.714395][I][  47415][scheduler.go NewScheduler:116] Engine registeredenginebrave
+[2026-06-22 14:00:30.714396][I][  47415][scheduler.go NewScheduler:116] Engine registeredenginewikipedia
+[2026-06-22 14:00:30.714397][I][  47415][scheduler.go NewScheduler:116] Engine registeredengineyahoo
+[2026-06-22 14:00:34.530426][I][  47415][request_logger.go func4:24] http_requestrequest_id39c85f31-5d9c-4a94-9d26-a50041f3bcc5methodGETpath/status429duration_ms0client_ip::1user_agentcurl/8.7.1

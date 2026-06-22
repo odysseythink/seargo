@@ -1,150 +1,98 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useSearchStore } from '../stores/searchStore';
+import { AnswerBox } from '../components/results/AnswerBox';
 import { ResultCard } from '../components/results/ResultCard';
 import { ImageGrid } from '../components/results/ImageGrid';
-import { AnswerBox } from '../components/results/AnswerBox';
-import { InfoboxPanel } from '../components/results/InfoboxPanel';
-import AutocompleteDropdown from '../components/search/AutocompleteDropdown';
+import Pagination from '../components/search/Pagination';
+import ResultsSidebar from '../components/results/Sidebar';
 
 export default function SearchPage() {
-  const { t } = useTranslation();
-  const [input, setInput] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const { results, answers, corrections, infoboxes, isLoading, enginesUsed, enginesFailed, responseTimeMs, error, search } = useSearchStore();
-  const hasSearched = results.length > 0 || error !== null || enginesUsed.length > 0;
+  const [searchParams] = useSearchParams();
+  const { results, answers, corrections, isLoading, enginesUsed, responseTimeMs, error, search } = useSearchStore();
+  const hasQuery = searchParams.has('q');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim()) {
-      search({ q: input.trim() });
+  useEffect(() => {
+    if (hasQuery) {
+      search({
+        q: searchParams.get('q') || '',
+        category: searchParams.get('category') || 'general',
+        page: parseInt(searchParams.get('page') || '1'),
+      });
     }
-  };
+  }, [searchParams, search, hasQuery]);
 
-  // Separate image results for grid layout
-  const imageResults = results.filter(r => r.kind === 'image') as any[];
-  const nonImageResults = results.filter(r => r.kind !== 'image');
+  const imageResults = results.filter(r => r.kind === 'image');
+  const mainResults = results.filter(r => r.kind !== 'image');
+  const resultsOnNewTab = false;
+
+  if (!hasQuery) return null;
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-[#e5e5e5]">
-      <div className="max-w-3xl mx-auto px-4 py-12">
-        {/* Logo / Title */}
-        <div className={`text-center transition-all duration-500 ${hasSearched ? 'mb-6' : 'mb-12 mt-20'}`}>
-          <h1 className="text-5xl font-bold tracking-tight mb-2">
-            <span className="text-[#3b82f6]">Sear</span>Go
-          </h1>
-          <p className="text-[#9ca3af] text-sm">{t('search.subtitle')}</p>
+    <div>
+      {/* Error */}
+      {error && (
+        <div style={{ padding: '0.75rem 1rem', color: 'var(--color-engine-error)', backgroundColor: 'var(--color-engine-error-background)', borderRadius: '0.25rem', marginBottom: '1rem', fontSize: '0.9rem' }}>
+          {error}
         </div>
+      )}
 
-        {/* Search Box */}
-        <form onSubmit={handleSubmit} className="relative mb-8">
-          <div className="flex gap-2">
-            <div
-              className="flex-1 relative"
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setTimeout(() => setShowDropdown(false), 150);
-                }
-              }}
-            >
-              <input
-                type="text" value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  setShowDropdown(true);
-                }}
-                placeholder={t('search.placeholder')}
-                className="w-full px-5 py-3.5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
-                         text-[#e5e5e5] placeholder-[#6b7280] outline-none
-                         focus:border-[#3b82f6] focus:ring-2 focus:ring-[#3b82f6]/30
-                         transition-all duration-200 text-base"
-              />
-              <AutocompleteDropdown
-                query={input}
-                onSelect={(value) => {
-                  setInput(value);
-                  setShowDropdown(false);
-                  search({ q: value });
-                }}
-                onClose={() => setShowDropdown(false)}
-                visible={showDropdown}
-              />
-              {input && (
-                <button type="button" onClick={() => setInput('')}
-                  className="absolute end-3 top-1/2 -translate-y-1/2 text-[#6b7280] hover:text-[#e5e5e5]">
-                  ✕
-                </button>
-              )}
-            </div>
-            <button type="submit" disabled={isLoading}
-              className="px-6 py-3.5 bg-[#3b82f6] hover:bg-[#2563eb] disabled:bg-[#1e3a5f]
-                       rounded-xl font-medium transition-all duration-200
-                       flex items-center gap-2 min-w-[100px] justify-center">
-              {isLoading ? (
-                <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : t('search.button')}
-            </button>
-          </div>
-        </form>
+      {/* Loading */}
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--color-base-font)' }}>Searching...</div>
+      )}
 
-        {/* Error */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-300">{error}</div>
-        )}
+      {/* Search stats */}
+      {!isLoading && results.length > 0 && (
+        <div style={{ marginBottom: '0.75rem', fontSize: '0.8rem', color: 'var(--color-base-font)', opacity: 0.7 }}>
+          {results.length} results ({responseTimeMs}ms) &middot; Engines: {enginesUsed.join(', ')}
+        </div>
+      )}
 
-        {/* Results Stats */}
-        {(results.length > 0 || enginesFailed.length > 0) && (
-          <div className="mb-4 text-sm text-[#9ca3af]">
-            {t('search.found_results', { count: results.length })}
-            {responseTimeMs > 0 && t('search.in_time', { time: responseTimeMs })}
-            {enginesUsed.length > 0 && <span> · {t('search.engines')}: {enginesUsed.join(', ')}</span>}
-            {enginesFailed.length > 0 && <span className="text-red-400"> · {t('search.failed')}: {enginesFailed.join(', ')}</span>}
-          </div>
-        )}
-
-        {/* Answers */}
-        {answers.length > 0 && (
-          <div className="mb-6 space-y-2">
-            {answers.map((a, i) => <AnswerBox key={i} answer={a} />)}
-          </div>
-        )}
-
-        {/* Corrections */}
-        {corrections.length > 0 && (
-          <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-xl text-yellow-300 text-sm">
-            {t('search.did_you_mean')}: {corrections.join(', ')}?
-          </div>
-        )}
-
-        {/* Infoboxes */}
-        {infoboxes.length > 0 && (
-          <div className="mb-6 space-y-4">
-            {infoboxes.map((inf, i) => <InfoboxPanel key={i} infobox={inf} />)}
-          </div>
-        )}
-
-        {/* Image Grid (when images present) */}
-        {imageResults.length > 0 && <ImageGrid results={imageResults} />}
-
-        {/* Non-image Results */}
-        <div className="space-y-3">
-          {nonImageResults.map((r, i) => (
-            <div key={r.url + i}
-                 className="animate-fade-in"
-                 style={{ animationDelay: `${i * 60}ms` }}>
-              <ResultCard result={r} />
-            </div>
+      {/* Corrections */}
+      {corrections?.length > 0 && (
+        <div style={{ marginBottom: '0.75rem', fontSize: '0.9rem' }}>
+          <span style={{ color: 'var(--color-base-font)' }}>Did you mean: </span>
+          {corrections.map((c: string, i: number) => (
+            <a key={i} href={`/?q=${encodeURIComponent(c)}`}
+              style={{ color: 'var(--color-result-link)', marginRight: '0.5rem', fontWeight: 500 }}>{c}</a>
           ))}
         </div>
+      )}
 
-        {/* Empty state */}
-        {hasSearched && results.length === 0 && !isLoading && !error && (
-          <div className="text-center py-12 text-[#6b7280]">
-            <p className="text-lg mb-2">{t('search.no_results')}</p>
-            <p className="text-sm">{t('search.no_results_hint')}</p>
-          </div>
-        )}
+      {/* Answers */}
+      {answers?.length > 0 && answers.map((a: any, i: number) => (
+        <div key={i} style={{ marginBottom: '0.75rem' }}>
+          <AnswerBox answer={a} />
+        </div>
+      ))}
+
+      {/* Results + Sidebar grid */}
+      <div style={{ display: 'flex', gap: '1.5rem' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Image results */}
+          {imageResults.length > 0 && <ImageGrid results={imageResults} resultsOnNewTab={resultsOnNewTab} />}
+
+          {/* Main results */}
+          {mainResults.map((r, i) => (
+            <ResultCard key={i} result={r} index={i} resultsOnNewTab={resultsOnNewTab} />
+          ))}
+
+          {/* Pagination */}
+          <Pagination />
+        </div>
+
+        {/* Sidebar */}
+        {!isLoading && <ResultsSidebar />}
       </div>
+
+      {/* Empty state */}
+      {!isLoading && results.length === 0 && !error && (
+        <div style={{ textAlign: 'center', padding: '4rem' }}>
+          <p style={{ fontSize: '1.2rem', color: 'var(--color-base-font)', marginBottom: '1rem' }}>No results found.</p>
+          <p style={{ color: 'var(--color-result-url)' }}>Try different keywords or check your search settings.</p>
+        </div>
+      )}
     </div>
   );
 }

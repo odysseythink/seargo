@@ -8,8 +8,8 @@ const MIN_LENGTH = 2;
 interface AutocompleteDropdownProps {
   query: string;
   onSelect: (value: string) => void;
-  onClose: () => void;
-  visible: boolean;
+  onClose?: () => void;
+  visible?: boolean;
 }
 
 export default function AutocompleteDropdown({
@@ -45,7 +45,7 @@ export default function AutocompleteDropdown({
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
+    if (visible === false) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => fetchSuggestions(query), DEBOUNCE_MS);
     return () => {
@@ -74,30 +74,57 @@ export default function AutocompleteDropdown({
         }
         break;
       case 'Escape':
-        onClose();
+        onClose?.();
         break;
     }
   };
 
-  if (!visible || (suggestions.length === 0 && !loading)) return null;
+  const isVisible = visible !== undefined ? visible : (suggestions.length > 0 || loading);
+  if (!isVisible || (suggestions.length === 0 && !loading)) return null;
 
   return (
     <div
       tabIndex={0}
-      className="absolute left-0 right-0 top-full mt-1 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)]
-                 rounded-xl shadow-lg overflow-hidden z-50"
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: '100%',
+        marginTop: '0.25rem',
+        backgroundColor: 'var(--color-autocomplete-background)',
+        border: '1px solid var(--color-autocomplete-border)',
+        borderRadius: '0.75rem',
+        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)',
+        overflow: 'hidden',
+        zIndex: 50,
+      }}
       onKeyDown={handleKeyDown}
     >
       {loading && suggestions.length === 0 && (
-        <div className="px-4 py-3 text-[#6b7280] text-sm">Loading...</div>
+        <div style={{
+          padding: '0.75rem 1rem',
+          color: 'var(--color-autocomplete-font)',
+          fontSize: '0.875rem',
+          opacity: 0.6,
+        }}>
+          Loading...
+        </div>
       )}
       {suggestions.map((s, i) => (
         <button
           key={s.value}
           type="button"
-          className={`w-full text-left px-4 py-2.5 text-[#e5e5e5] hover:bg-[#3b82f6]/20
-                     transition-colors duration-100 text-sm
-                     ${i === activeIndex ? 'bg-[#3b82f6]/20' : ''}`}
+          style={{
+            width: '100%',
+            textAlign: 'left',
+            padding: '0.625rem 1rem',
+            color: 'var(--color-autocomplete-font)',
+            backgroundColor: i === activeIndex ? 'var(--color-autocomplete-selected)' : 'transparent',
+            transition: 'background-color 0.1s',
+            fontSize: '0.875rem',
+            border: 'none',
+            cursor: 'pointer',
+          }}
           onClick={() => onSelect(s.value)}
           onMouseEnter={() => setActiveIndex(i)}
         >

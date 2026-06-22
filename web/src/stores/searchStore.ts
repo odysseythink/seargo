@@ -8,10 +8,14 @@ export const useSearchStore = create<SearchState>((set) => ({
   answers: [],
   corrections: [],
   infoboxes: [],
+  suggestions: [],
   isLoading: false,
   enginesUsed: [],
   enginesFailed: [],
   responseTimeMs: 0,
+  total: 0,
+  page: 1,
+  pageSize: 10,
   error: null,
 
   setQuery: (q) => set({ query: q }),
@@ -26,9 +30,13 @@ export const useSearchStore = create<SearchState>((set) => ({
         answers: resp.data.answers || [],
         corrections: resp.data.corrections || [],
         infoboxes: resp.data.infoboxes || [],
+        suggestions: resp.data.suggestions || [],
         enginesUsed: resp.data.engines_used || [],
         enginesFailed: resp.data.engines_failed || [],
         responseTimeMs: resp.data.response_time_ms || 0,
+        total: resp.data.total || 0,
+        page: resp.data.page || 1,
+        pageSize: resp.data.page_size || 10,
         isLoading: false,
       });
     } catch (err: any) {

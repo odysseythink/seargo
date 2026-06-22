@@ -75,6 +75,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to load config: %v\n", err)
 		os.Exit(1)
 	}
+	mlog.SetLogDir("logs")
 
 	mlog.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
 

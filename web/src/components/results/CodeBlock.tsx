@@ -1,44 +1,88 @@
 import type { CodeResult } from '../../types/search';
 
-interface Props { result: CodeResult }
+interface Props {
+  result: CodeResult;
+  index?: number;
+  resultsOnNewTab?: boolean;
+}
 
-export function CodeBlock({ result }: Props) {
+export function CodeBlock({ result, index: _index, resultsOnNewTab }: Props) {
   const extra = result.extra;
   const lines = extra?.code_lines?.slice(0, 20) ?? [];
   return (
-    <div className="p-5 bg-[#1a1a1a] border border-[rgba(255,255,255,0.08)] rounded-xl
-                    hover:border-[rgba(255,255,255,0.15)] transition-all duration-200">
-      <div className="flex items-center gap-2 mb-2 flex-wrap">
+    <div style={{
+      padding: '0.75rem 0',
+      borderBottom: '1px solid var(--color-result-border)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
         {extra?.filename && (
-          <span className="text-sm font-mono text-[#60a5fa]">{extra.filename}</span>
+          <span style={{ fontSize: '0.875rem', fontFamily: 'monospace', color: 'var(--color-result-link)' }}>{extra.filename}</span>
         )}
         {extra?.code_language && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#1e3a5f] text-[#60a5fa]">
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '0.125rem 0.5rem',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
+            fontWeight: 500,
+            backgroundColor: 'var(--color-result-background)',
+            color: 'var(--color-result-link)',
+            border: '1px solid var(--color-result-border)',
+          }}>
             {extra.code_language}
           </span>
         )}
         {extra?.repository && (
-          <a href={extra.repository} target="_blank" rel="noopener noreferrer"
-             className="text-xs text-[#6b7280] hover:text-[#9ca3af] ml-auto truncate max-w-[200px]">
+          <a href={extra.repository}
+            target={resultsOnNewTab ? '_blank' : '_self'}
+            rel="noopener noreferrer"
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--color-result-published-date)',
+              textDecoration: 'none',
+              marginLeft: 'auto',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '200px',
+            }}
+            onMouseEnter={e => (e.target as HTMLElement).style.color = 'var(--color-base-font)'}
+            onMouseLeave={e => (e.target as HTMLElement).style.color = 'var(--color-result-published-date)'}
+          >
             {extra.repository}
           </a>
         )}
       </div>
       {lines.length > 0 ? (
-        <pre className="bg-[#0f0f0f] rounded-lg p-4 overflow-x-auto text-sm font-mono leading-relaxed">
+        <pre style={{
+          backgroundColor: 'var(--color-result-background)',
+          borderRadius: '8px',
+          padding: '1rem',
+          overflowX: 'auto',
+          fontSize: '0.875rem',
+          fontFamily: 'monospace',
+          lineHeight: 1.6,
+          border: '1px solid var(--color-result-border)',
+        }}>
           {lines.map((l, i) => (
-            <code key={i} className="text-[#9ca3af]">
-              <span className="text-[#6b7280] select-none mr-4">{l.line}</span>
+            <code key={i} style={{ color: 'var(--color-base-font)' }}>
+              <span style={{ color: 'var(--color-result-published-date)', userSelect: 'none', marginRight: '1rem' }}>{l.line}</span>
               <span>{l.text}</span>
               {'\n'}
             </code>
           ))}
         </pre>
       ) : (
-        <p className="text-[#9ca3af] text-sm">{result.content}</p>
+        <p style={{ color: 'var(--color-base-font)', fontSize: '0.875rem', margin: 0 }}>{result.content}</p>
       )}
-      <a href={result.url} target="_blank" rel="noopener noreferrer"
-         className="mt-2 inline-block text-xs text-[#60a5fa] hover:underline">
+      <a href={result.url}
+        target={resultsOnNewTab ? '_blank' : '_self'}
+        rel="noopener noreferrer"
+        style={{ marginTop: '0.5rem', display: 'inline-block', fontSize: '0.75rem', color: 'var(--color-result-link)', textDecoration: 'none' }}
+        onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+        onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}
+      >
         View source
       </a>
     </div>

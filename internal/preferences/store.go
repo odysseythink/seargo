@@ -41,7 +41,7 @@ func NewStore(cfg *config.Config) *PreferencesStore {
 
 	store.validChoices = map[string][]string{
 		"language":     cfg.Search.Languages,
-		"theme":        {"simple"},
+		"theme":        {"auto", "light", "dark", "black"},
 		"autocomplete": {"google", "bing", "duckduckgo", "brave", "qwant", "startpage",
 			"wikipedia", "dbpedia", "swisscows", "baidu", "naver", "yandex",
 			"seznam", "sogou", "mwmbl", "privacywall", "360search", "quark"},

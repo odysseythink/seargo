@@ -14,6 +14,11 @@ import (
 // Limiter returns Gin middleware that applies rate limiting.
 func Limiter(cfg *config.Config, lm limiter.Limiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if isStaticAsset(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
 		clientIP, _ := c.Get("clientIP")
 		ip, _ := clientIP.(string)
 
@@ -35,6 +40,15 @@ func Limiter(cfg *config.Config, lm limiter.Limiter) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// isStaticAsset reports whether the path is a frontend static asset that
+// should bypass rate limiting.
+func isStaticAsset(path string) bool {
+	return strings.HasPrefix(path, "/assets/") ||
+		path == "/favicon.svg" ||
+		path == "/icons.svg" ||
+		strings.HasPrefix(path, "/locales/")
 }
 
 // HandleLimiterLinkToken handles the /link_token endpoint.
