@@ -148,6 +148,7 @@ func main() {
 			SoftMaxRedirects:      ec.SoftMaxRedirects,
 			NoResultForHTTPStatus: ec.NoResultForHTTPStatus,
 			RaiseForHTTPError:     ec.RaiseForHTTPError,
+			Client:                httpClient,
 		})
 	}
 

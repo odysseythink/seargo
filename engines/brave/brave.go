@@ -40,6 +40,7 @@ func (b *Brave) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
 }
 
 func (b *Brave) Setup(cfg engine.EngineInitConfig) bool {
+	b.client = cfg.Client
 	return true
 }
 

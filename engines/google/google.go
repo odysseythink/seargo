@@ -40,6 +40,7 @@ func (g *Google) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
 }
 
 func (g *Google) Setup(cfg engine.EngineInitConfig) bool {
+	g.client = cfg.Client
 	return true
 }
 

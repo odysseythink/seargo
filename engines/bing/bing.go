@@ -40,6 +40,7 @@ func (b *Bing) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
 }
 
 func (b *Bing) Setup(cfg engine.EngineInitConfig) bool {
+	b.client = cfg.Client
 	return true
 }
 

@@ -42,6 +42,7 @@ func (d *DuckDuckGo) Init(ctx context.Context, cfg engine.EngineInitConfig) bool
 }
 
 func (d *DuckDuckGo) Setup(cfg engine.EngineInitConfig) bool {
+	d.client = cfg.Client
 	return true
 }
 

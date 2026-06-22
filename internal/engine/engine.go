@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
 )
 
@@ -30,6 +31,9 @@ type EngineInitConfig struct {
 	NoResultForHTTPStatus []int    // HTTP statuses treated as "no result"
 	RaiseForHTTPError interface{}  // nil|bool|int|[]int for retry-on-http-error
 	EngineTraits      EngineTraits // resolved language/region traits
+
+	// Client is the shared HTTP client for the engine to use.
+	Client *httpx.Client
 }
 
 // Engine is the interface that all search engines must implement.

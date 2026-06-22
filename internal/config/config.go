@@ -289,11 +289,70 @@ func Load(path string) (*Config, error) {
 		applyUseDefaultSettings(&cfg)
 	}
 
+	populateCategoriesAsTabs(&cfg)
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validate config: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+// populateCategoriesAsTabs fills empty category tabs with engines whose
+// configured categories include that tab. When no tabs are defined at all,
+// tabs are created automatically from the engine categories.
+func populateCategoriesAsTabs(cfg *Config) {
+	// Build category -> engine keys from engine configs.
+	enginesByCategory := make(map[string][]string)
+	for _, ec := range cfg.Engines {
+		if !isEngineEnabledForTabs(ec) {
+			continue
+		}
+		key := engineKey(ec)
+		for _, cat := range ec.Categories {
+			if !validCategories[cat] {
+				continue
+			}
+			enginesByCategory[cat] = append(enginesByCategory[cat], key)
+		}
+	}
+
+	// If no tabs are configured, expose every category that has engines.
+	if len(cfg.CategoriesAsTabs) == 0 {
+		cfg.CategoriesAsTabs = make(map[string]CategoryTabConfig, len(enginesByCategory))
+		for cat, engines := range enginesByCategory {
+			cfg.CategoriesAsTabs[cat] = CategoryTabConfig{Engines: engines}
+		}
+		return
+	}
+
+	// Otherwise, only back-fill tabs whose engine list is empty.
+	for cat, tab := range cfg.CategoriesAsTabs {
+		if len(tab.Engines) > 0 {
+			continue
+		}
+		if engines, ok := enginesByCategory[cat]; ok {
+			tab.Engines = engines
+			cfg.CategoriesAsTabs[cat] = tab
+		}
+	}
+}
+
+// isEngineEnabledForTabs reports whether an engine should be assigned to
+// category tabs. An engine is excluded only when explicitly disabled.
+func isEngineEnabledForTabs(ec EngineConfig) bool {
+	if ec.Enabled {
+		return true
+	}
+	return !ec.Disabled
+}
+
+// engineKey returns the canonical key for an engine config.
+func engineKey(ec EngineConfig) string {
+	if ec.Engine != "" {
+		return ec.Engine
+	}
+	return ec.Name
 }
 
 // -------- overlayDefaults --------

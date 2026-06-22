@@ -39,6 +39,7 @@ func (w *Wikipedia) Init(ctx context.Context, cfg engine.EngineInitConfig) bool 
 }
 
 func (w *Wikipedia) Setup(cfg engine.EngineInitConfig) bool {
+	w.client = cfg.Client
 	return true
 }
 

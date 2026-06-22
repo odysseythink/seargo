@@ -40,6 +40,7 @@ func (y *Yahoo) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
 }
 
 func (y *Yahoo) Setup(cfg engine.EngineInitConfig) bool {
+	y.client = cfg.Client
 	return true
 }
 
