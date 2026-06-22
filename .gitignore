@@ -14,3 +14,4 @@ seargo
 configs/favicons.toml
 configs/limiter.toml
 configs/settings.yml
+logs/
