@@ -22,8 +22,14 @@ import (
 	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
+	"github.com/seargo/seargo/internal/answerer"
+	_ "github.com/seargo/seargo/internal/answerer/builtin"
+	_ "github.com/seargo/seargo/internal/answerer/builtin/currency"
+	weather "github.com/seargo/seargo/internal/answerer/builtin/weather"
 	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/middleware"
+	"github.com/seargo/seargo/internal/plugin"
+	_ "github.com/seargo/seargo/internal/plugin/builtin"
 	"github.com/seargo/seargo/internal/preferences"
 	"github.com/seargo/seargo/internal/search"
 	"github.com/seargo/seargo/internal/security"
@@ -36,6 +42,7 @@ import (
 	_ "github.com/seargo/seargo/engines/brave"
 	_ "github.com/seargo/seargo/engines/duckduckgo"
 	_ "github.com/seargo/seargo/engines/google"
+	_ "github.com/seargo/seargo/engines/wikidata"
 	_ "github.com/seargo/seargo/engines/wikipedia"
 	_ "github.com/seargo/seargo/engines/yahoo"
 )
@@ -238,6 +245,41 @@ func main() {
 	// Init preferences store
 	preferencesStore := preferences.NewStore(cfg)
 
+	// Init plugin storage, register built-in plugins, and initialize them.
+	pluginStorage := plugin.NewPluginStorage()
+	plugin.RegisterBuiltinsFromList(pluginStorage, plugin.BuiltinRegistrations())
+	appCtx := &plugin.AppContext{
+		Config:     cfg,
+		HTTPClient: httpClient,
+	}
+	for _, p := range pluginStorage.All() {
+		if !p.Init(appCtx) {
+			mlog.Warning("Plugin init returned false, continuing without it", "plugin", p.ID())
+		}
+	}
+	plugin.SetGlobalPlugin(pluginStorage)
+
+	// Optionally load third-party .so plugins from plugin_dir.
+	if cfg.PluginDir != "" {
+		enabledIDs := make([]string, 0, len(cfg.Plugins))
+		for id, pc := range cfg.Plugins {
+			if pc.Active {
+				enabledIDs = append(enabledIDs, id)
+			}
+		}
+		if _, err := plugin.LoadThirdPartyPlugins(cfg.PluginDir, enabledIDs, pluginStorage); err != nil {
+			mlog.Warning("Failed to load third-party plugins", "error", err)
+		}
+	}
+
+	// Init answerer storage and activate built-in answerers.
+	answererStorage := answerer.NewAnswererStorage()
+	answerer.SetGlobalAnswerer(answererStorage)
+
+	// Weather answerer needs an HTTP client and a cache namespace.
+	weather.SetHTTPClient(httpClient)
+	weather.SetCache(sharedStorage.WithNamespace("weather"))
+
 	// Init locale registry for i18n
 	localeReg := i18n.NewLocaleRegistry()
 
@@ -245,7 +287,7 @@ func main() {
 	enginesStatsStore := metrics.NewEngineStatsStore(100)
 
 	// Init scheduler (handles engine registration internally)
-	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie, traits, enginesStatsStore)
+	sched, err := search.NewScheduler(cfg, c, httpClient, pluginStorage, answererStorage, bangTrie, traits, enginesStatsStore)
 	if err != nil {
 		mlog.Error("Failed to init scheduler", "error", err)
 		os.Exit(1)

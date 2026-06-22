@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -32,8 +33,13 @@ func (p *unitConverterPlugin) Info() plugin.PluginInfo {
 	}
 }
 
-func (p *unitConverterPlugin) Init(ctx *plugin.AppContext) bool                { return true }
-func (p *unitConverterPlugin) PreSearch(ctx *plugin.SearchContext) bool       { return true }
+func (p *unitConverterPlugin) Init(ctx *plugin.AppContext) bool {
+	if err := deps.LoadUnits("data/wikidata_units.json"); err != nil {
+		log.Printf("[seargo] unit_converter: failed to load data/wikidata_units.json, using fallback: %v", err)
+	}
+	return true
+}
+func (p *unitConverterPlugin) PreSearch(ctx *plugin.SearchContext) bool                  { return true }
 func (p *unitConverterPlugin) OnResult(ctx *plugin.SearchContext, r *models.Result) bool { return true }
 
 func (p *unitConverterPlugin) PostSearch(ctx *plugin.SearchContext) []models.Result {

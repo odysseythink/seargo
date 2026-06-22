@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/plugin"
 	"github.com/seargo/seargo/internal/plugin/deps"
 	"github.com/seargo/seargo/pkg/models"
@@ -31,7 +32,34 @@ func (o *oaDOIRewritePlugin) Info() plugin.PluginInfo {
 	}
 }
 
+var defaultDOIResolvers = map[string]string{
+	"oadoi.org": "https://oadoi.org/",
+	"doi.org":   "https://doi.org/",
+	"scihub":    "https://sci-hub.se/",
+}
+
 func (o *oaDOIRewritePlugin) Init(ctx *plugin.AppContext) bool {
+	o.defaultResolver = "oadoi.org"
+
+	cfg, ok := ctx.Config.(*config.Config)
+	if !ok || cfg == nil {
+		o.preferredResolver = o.defaultResolver
+		o.resolvers = defaultDOIResolvers
+		return true
+	}
+
+	preferred := cfg.DefaultDOIResolver
+	if preferred == "" {
+		preferred = o.defaultResolver
+	}
+
+	resolvers := cfg.DOIRsolvers
+	if len(resolvers) == 0 {
+		resolvers = defaultDOIResolvers
+	}
+
+	o.preferredResolver = preferred
+	o.resolvers = resolvers
 	return true
 }
 

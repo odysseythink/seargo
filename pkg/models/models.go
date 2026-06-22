@@ -30,15 +30,16 @@ func AllCategories() []Category {
 }
 
 type Request struct {
-	Query      string     `form:"q" binding:"required"`
-	Category   Category   `form:"category"`
-	Categories []Category `form:"categories"`
-	Language   string     `form:"language"`
-	Locale     string     `form:"locale"`
-	SafeSearch int        `form:"safesearch"`
-	TimeRange  string     `form:"time_range"`
-	Page       int        `form:"page"`
-	PageSize   int        `form:"page_size"`
+	Query          string     `form:"q" binding:"required"`
+	Category       Category   `form:"category"`
+	Categories     []Category `form:"categories"`
+	Language       string     `form:"language"`
+	Locale         string     `form:"locale"`
+	SafeSearch     int        `form:"safesearch"`
+	TimeRange      string     `form:"time_range"`
+	Page           int        `form:"page"`
+	PageSize       int        `form:"page_size"`
+	EnabledPlugins []string   `form:"-" json:"-"`
 }
 
 func (r *Request) CacheKey() string {
@@ -54,6 +55,9 @@ func (r *Request) CacheKey() string {
 			catStr += ","
 		}
 		catStr += string(c)
+	}
+	for _, p := range r.EnabledPlugins {
+		h.Write([]byte(p))
 	}
 	return fmt.Sprintf("search:%s:%s:%s:%d:%s:%d:%d:%x",
 		catStr, r.Language, r.Locale, r.SafeSearch,
@@ -114,6 +118,7 @@ type InfoboxURL struct {
 }
 
 type Infobox struct {
+	InfoboxID     string             `json:"infobox_id,omitempty"`
 	Title         string             `json:"title"`
 	URL           string             `json:"url,omitempty"`
 	Content       string             `json:"content,omitempty"`

@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 export default function LinksOnTop() {
+  const { t } = useTranslation();
+
   return (
     <nav style={{
       display: 'flex',
@@ -11,8 +14,9 @@ export default function LinksOnTop() {
       borderBottom: '1px solid var(--color-header-border)',
       fontSize: '0.8rem',
     }}>
-      <Link to="/about" style={{ color: 'var(--color-result-link)' }}>About</Link>
-      <Link to="/preferences" style={{ color: 'var(--color-result-link)' }}>Preferences</Link>
+      <Link to="/about" style={{ color: 'var(--color-result-link)' }}>{t('sidebar.about')}</Link>
+      <Link to="/privacy" style={{ color: 'var(--color-result-link)' }}>{t('sidebar.privacy')}</Link>
+      <Link to="/preferences" style={{ color: 'var(--color-result-link)' }}>{t('sidebar.settings')}</Link>
     </nav>
   );
 }

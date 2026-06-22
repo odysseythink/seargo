@@ -47,15 +47,33 @@ func NewAnswererStorage() *AnswererStorage {
 }
 
 var (
-	ansMu         sync.RWMutex
-	globalAnswerer *AnswererStorage
+	ansMu            sync.RWMutex
+	globalAnswerer   *AnswererStorage
+	pendingAnswerers []Answerer
 )
+
+// Register adds an answerer to the global answerer storage.
+// If the global storage has not been set yet, the answerer is queued and
+// registered once SetGlobalAnswerer is called.
+func Register(a Answerer) {
+	ansMu.Lock()
+	defer ansMu.Unlock()
+	if globalAnswerer == nil {
+		pendingAnswerers = append(pendingAnswerers, a)
+		return
+	}
+	globalAnswerer.Register(a)
+}
 
 // SetGlobalAnswerer sets the global answerer storage.
 func SetGlobalAnswerer(as *AnswererStorage) {
 	ansMu.Lock()
 	defer ansMu.Unlock()
 	globalAnswerer = as
+	for _, a := range pendingAnswerers {
+		as.Register(a)
+	}
+	pendingAnswerers = pendingAnswerers[:0]
 }
 
 // GlobalAnswerer returns the global answerer storage.

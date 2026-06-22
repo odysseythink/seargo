@@ -1,7 +1,10 @@
 package deps
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
+	"os"
 	"strings"
 )
 
@@ -52,6 +55,43 @@ var unitTable = []UnitEntry{
 	{Symbol: "l", SIName: "l", ToSI: 1, FromSI: 1},
 	{Symbol: "ml", SIName: "l", ToSI: 0.001, FromSI: 1000},
 	{Symbol: "gal", SIName: "l", ToSI: 3.78541, FromSI: 0.264172},
+}
+
+// rawUnitRecord mirrors the JSON schema in data/wikidata_units.json.
+type rawUnitRecord struct {
+	Symbol     string  `json:"symbol"`
+	SIName     string  `json:"si_name"`
+	ToSIFactor float64 `json:"to_si_factor"`
+}
+
+// LoadUnits reads unit definitions from path and appends them to the built-in
+// fallback table. If the file is missing or malformed an error is returned and
+// the existing hard-coded table is left intact.
+func LoadUnits(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+
+	var raw map[string]rawUnitRecord
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+
+	for _, rec := range raw {
+		factor := rec.ToSIFactor
+		fromSI := 0.0
+		if factor != 0 {
+			fromSI = 1.0 / factor
+		}
+		unitTable = append(unitTable, UnitEntry{
+			Symbol: rec.Symbol,
+			SIName: rec.SIName,
+			ToSI:   factor,
+			FromSI: fromSI,
+		})
+	}
+	return nil
 }
 
 // LookupUnit searches the unit table by symbol (case-insensitive).

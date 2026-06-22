@@ -12,8 +12,8 @@ type mockAnswerer struct {
 	answers []models.Result
 }
 
-func (m *mockAnswerer) Keywords() []string                     { return m.info.Keywords }
-func (m *mockAnswerer) Info() AnswererInfo                     { return m.info }
+func (m *mockAnswerer) Keywords() []string                        { return m.info.Keywords }
+func (m *mockAnswerer) Info() AnswererInfo                        { return m.info }
 func (m *mockAnswerer) Answer(ctx *AnswerContext) []models.Result { return m.answers }
 
 func TestAnswererStorage_RegisterAndKeywordIndex(t *testing.T) {
@@ -86,4 +86,26 @@ func TestAnswerContext_Fields(t *testing.T) {
 	assert.Equal(t, "avg 1 2 3", ctx.Query)
 	assert.Equal(t, "zh-CN", ctx.Locale)
 	assert.Equal(t, "oadoi.org", ctx.Preferences["doi_resolver"])
+}
+
+func TestRegister_Pending(t *testing.T) {
+	ResetForTest()
+
+	a := &mockAnswerer{
+		info:    AnswererInfo{Name: "pending", Keywords: []string{"pending"}},
+		answers: []models.Result{{Kind: "answer", Title: "pending result"}},
+	}
+	Register(a)
+
+	// Before SetGlobalAnswerer, the answerer is queued.
+	assert.Nil(t, GlobalAnswerer())
+
+	as := NewAnswererStorage()
+	SetGlobalAnswerer(as)
+
+	// After setting global, pending answerers are flushed.
+	assert.Equal(t, as, GlobalAnswerer())
+	results := as.Ask(&AnswerContext{Query: "pending test"})
+	assert.Len(t, results, 1)
+	assert.Equal(t, "pending result", results[0].Title)
 }

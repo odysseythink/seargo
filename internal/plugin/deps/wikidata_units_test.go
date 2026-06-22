@@ -1,9 +1,12 @@
 package deps
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLookupKM(t *testing.T) {
@@ -90,4 +93,44 @@ func TestConvertEmptySourceOrTarget(t *testing.T) {
 
 	_, ok = Convert(10, []UnitEntry{{Symbol: "m", SIName: "m"}}, nil)
 	assert.False(t, ok)
+}
+
+func TestLoadUnits_AppendsEntries(t *testing.T) {
+	// Save and restore the global table to avoid affecting other tests.
+	original := make([]UnitEntry, len(unitTable))
+	copy(original, unitTable)
+	t.Cleanup(func() {
+		unitTable = original
+	})
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "units.json")
+	data := `{
+		"Q123": {"symbol": "mockm", "si_name": "Q11573", "to_si_factor": 2.5}
+	}`
+	require.NoError(t, os.WriteFile(path, []byte(data), 0644))
+
+	err := LoadUnits(path)
+	require.NoError(t, err)
+
+	entries := LookupUnit("mockm")
+	require.Len(t, entries, 1)
+	assert.Equal(t, "mockm", entries[0].Symbol)
+	assert.Equal(t, "Q11573", entries[0].SIName)
+	assert.InDelta(t, 2.5, entries[0].ToSI, 1e-9)
+	assert.InDelta(t, 0.4, entries[0].FromSI, 1e-9)
+}
+
+func TestLoadUnits_MissingFileReturnsError(t *testing.T) {
+	err := LoadUnits(filepath.Join(t.TempDir(), "missing.json"))
+	assert.Error(t, err)
+}
+
+func TestLoadUnits_MalformedFileReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "units.json")
+	require.NoError(t, os.WriteFile(path, []byte("not json"), 0644))
+
+	err := LoadUnits(path)
+	assert.Error(t, err)
 }

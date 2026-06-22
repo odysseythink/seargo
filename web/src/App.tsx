@@ -19,8 +19,8 @@ function AppShell() {
         <Route path="/" element={<SearchPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/stats" element={<StatsPage />} />
-        <Route path="/about" element={<InfoPage />} />
-        <Route path="/privacy" element={<InfoPage />} />
+        <Route path="/about" element={<InfoPage page="about" />} />
+        <Route path="/privacy" element={<InfoPage page="privacy" />} />
       </Routes>
     </LayoutShell>
   );

@@ -152,31 +152,47 @@ func (c *TypedResultContainer) mergeAnswer(engineName string, r models.Result, p
 }
 
 func (c *TypedResultContainer) mergeInfobox(engineName string, r models.Result, pos int) {
-	id := ""
-	if r.Extra != nil {
-		if v, ok := r.Extra["infobox_id"]; ok {
-			id, _ = v.(string)
-		}
-	}
-	if id == "" {
-		id = r.URL
-	}
+	id := infoboxIDFromResult(r)
 	if id == "" {
 		id = "infobox:" + r.Title
 	}
+	key := normalizeInfoboxID(id)
 
-	if existing, ok := c.infoboxes[id]; ok {
-		existing.Engines = appendUniqueStr(existing.Engines, engineName)
+	if existing, ok := c.infoboxes[key]; ok {
+		incoming := buildInfoboxFromResult(engineName, r)
+		mergeTwoInfoboxes(existing, incoming)
 		return
 	}
 
-	// Build infobox from result
+	c.infoboxes[key] = buildInfoboxFromResult(engineName, r)
+}
+
+func infoboxIDFromResult(r models.Result) string {
+	if r.Extra != nil {
+		if v, ok := r.Extra["infobox_id"]; ok {
+			if s, ok := v.(string); ok {
+				return s
+			}
+		}
+	}
+	if r.URL != "" {
+		return r.URL
+	}
+	return ""
+}
+
+func buildInfoboxFromResult(engineName string, r models.Result) *models.Infobox {
+	id := infoboxIDFromResult(r)
+	if id == "" {
+		id = "infobox:" + r.Title
+	}
 	infobox := &models.Infobox{
-		Title:   r.Title,
-		URL:     r.URL,
-		Content: r.Content,
-		Engine:  engineName,
-		Engines: []string{engineName},
+		InfoboxID: id,
+		Title:     r.Title,
+		URL:       r.URL,
+		Content:   r.Content,
+		Engine:    engineName,
+		Engines:   []string{engineName},
 	}
 	if r.Extra != nil {
 		if v, ok := r.Extra["img_src"]; ok {
@@ -209,7 +225,70 @@ func (c *TypedResultContainer) mergeInfobox(engineName string, r models.Result, 
 			}
 		}
 	}
-	c.infoboxes[id] = infobox
+	return infobox
+}
+
+func normalizeInfoboxID(id string) string {
+	id = strings.ReplaceAll(id, "http://", "https://")
+	id = strings.ReplaceAll(id, "https://www.wikidata.org/entity/", "")
+
+	// Strip any language-specific Wikipedia article prefix.
+	if strings.HasPrefix(id, "https://") {
+		if u, err := url.Parse(id); err == nil {
+			host := strings.ToLower(u.Host)
+			if strings.HasSuffix(host, ".wikipedia.org") {
+				id = strings.TrimPrefix(u.Path, "/wiki/")
+			}
+		}
+	}
+
+	return strings.Trim(id, "_/")
+}
+
+func mergeTwoInfoboxes(a, b *models.Infobox) {
+	if a.Title == "" && b.Title != "" {
+		a.Title = b.Title
+	}
+	if a.Content == "" && b.Content != "" {
+		a.Content = b.Content
+	}
+	if a.URL == "" && b.URL != "" {
+		a.URL = b.URL
+	}
+	if a.ImgSrc == "" && b.ImgSrc != "" {
+		a.ImgSrc = b.ImgSrc
+	}
+
+	seen := make(map[string]bool)
+	for _, attr := range a.Attributes {
+		seen[attr.Label] = true
+	}
+	for _, attr := range b.Attributes {
+		if !seen[attr.Label] {
+			a.Attributes = append(a.Attributes, attr)
+			seen[attr.Label] = true
+		}
+	}
+
+	seenURL := make(map[string]bool)
+	for _, u := range a.URLs {
+		seenURL[u.URL] = true
+	}
+	for _, u := range b.URLs {
+		if !seenURL[u.URL] {
+			a.URLs = append(a.URLs, u)
+			seenURL[u.URL] = true
+		}
+	}
+
+	a.Engines = appendUniqueStrSlice(a.Engines, b.Engines...)
+}
+
+func appendUniqueStrSlice(slice []string, items ...string) []string {
+	for _, item := range items {
+		slice = appendUniqueStr(slice, item)
+	}
+	return slice
 }
 
 func (c *TypedResultContainer) mergeSuggestion(r models.Result) {
@@ -281,11 +360,21 @@ func (c *TypedResultContainer) AddInfoboxes(engineName string, infoboxes []model
 	}
 	for i := range infoboxes {
 		ib := infoboxes[i]
-		id := ib.Title
-		if _, ok := c.infoboxes[id]; !ok {
-			ib.Engines = appendUniqueStr(ib.Engines, engineName)
-			c.infoboxes[id] = &ib
+		id := ib.InfoboxID
+		if id == "" {
+			id = ib.URL
 		}
+		if id == "" {
+			id = "infobox:" + ib.Title
+		}
+		key := normalizeInfoboxID(id)
+		if existing, ok := c.infoboxes[key]; ok {
+			ib.Engines = appendUniqueStr(ib.Engines, engineName)
+			mergeTwoInfoboxes(existing, &ib)
+			continue
+		}
+		ib.Engines = appendUniqueStr(ib.Engines, engineName)
+		c.infoboxes[key] = &ib
 	}
 }
 

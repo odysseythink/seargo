@@ -1,0 +1,46 @@
+{
+  "imdb_title": {
+    "category_name": "IMDB",
+    "url_name": "IMDB title",
+    "urls": {
+      "default": "https://www.imdb.com/title/$1",
+      "mobile": "https://m.imdb.com/title/$1"
+    }
+  },
+  "imdb_name": {
+    "category_name": "IMDB",
+    "url_name": "IMDB name",
+    "urls": {
+      "default": "https://www.imdb.com/name/$1",
+      "mobile": "https://m.imdb.com/name/$1"
+    }
+  },
+  "map": {
+    "category_name": "OpenStreetMap",
+    "url_name": "OpenStreetMap",
+    "urls": {
+      "default": "https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}&zoom=${zoom}"
+    }
+  },
+  "wikimedia_image": {
+    "category_name": "Wikimedia Commons",
+    "url_name": "Wikimedia Commons image",
+    "urls": {
+      "default": "https://commons.wikimedia.org/wiki/File:$1"
+    }
+  },
+  "twitter_profile": {
+    "category_name": "X",
+    "url_name": "X profile",
+    "urls": {
+      "default": "https://x.com/$1"
+    }
+  },
+  "facebook_profile": {
+    "category_name": "Facebook",
+    "url_name": "Facebook profile",
+    "urls": {
+      "default": "https://www.facebook.com/$1"
+    }
+  }
+}

@@ -46,6 +46,19 @@ type Scheduler struct {
 	engineStatsStore     *metrics.EngineStatsStore
 }
 
+// PluginIDs returns the IDs of all registered plugins.
+func (s *Scheduler) PluginIDs() []string {
+	if s.pluginStorage == nil {
+		return nil
+	}
+	plugins := s.pluginStorage.All()
+	ids := make([]string, 0, len(plugins))
+	for _, p := range plugins {
+		ids = append(ids, p.ID())
+	}
+	return ids
+}
+
 // isEngineEnabled 判断引擎是否启用。Enabled 优先于 Disabled。
 func isEngineEnabled(ec config.EngineConfig) bool {
 	if ec.Enabled {
@@ -205,7 +218,8 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	var answererResults []models.Result
 	if s.answererStorage != nil {
 		actx := &answerer.AnswerContext{
-			Query: req.Query,
+			Query:  req.Query,
+			Locale: req.Locale,
 		}
 		answererResults = s.answererStorage.Ask(actx)
 	}
@@ -538,11 +552,13 @@ func (s *Scheduler) buildSearchContext(parsed *query.ParsedQuery, req *models.Re
 		queryStr = req.Query
 	}
 	return &plugin.SearchContext{
-		Query:      queryStr,
-		RawQuery:   req.Query,
-		Lang:       parsed.Lang,
-		SafeSearch: req.SafeSearch,
-		PageNo:     req.Page,
-		TimeRange:  req.TimeRange,
+		Query:       queryStr,
+		RawQuery:    req.Query,
+		Lang:        parsed.Lang,
+		Locale:      req.Locale,
+		SafeSearch:  req.SafeSearch,
+		PageNo:      req.Page,
+		TimeRange:   req.TimeRange,
+		UserPlugins: req.EnabledPlugins,
 	}
 }

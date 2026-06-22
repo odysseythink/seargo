@@ -3,6 +3,7 @@ package server
 import (
 	"io/fs"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -106,6 +107,16 @@ func (s *Server) handleSearch(c *gin.Context) {
 		}
 	}
 
+	// Resolve locale and enabled plugins for plugins/answerers
+	if req.Locale == "" {
+		if prefs != nil && prefs.Locale != "" {
+			req.Locale = prefs.Locale
+		} else {
+			req.Locale = defaultLang
+		}
+	}
+	req.EnabledPlugins = s.computeEnabledPlugins(prefs)
+
 	req.Normalize(models.NormalizeDefaults{
 		DefaultLang:     defaultLang,
 		DefaultCategory: defaultCategory,
@@ -182,6 +193,45 @@ func (s *Server) handleSearch(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// computeEnabledPlugins returns the plugin IDs that should run for this request.
+// It starts from all registered plugins, applies the configured active flags,
+// and finally applies user preference enabled/disabled overrides.
+func (s *Server) computeEnabledPlugins(prefs *preferences.UserPreferences) []string {
+	if s.scheduler == nil {
+		return nil
+	}
+	all := s.scheduler.PluginIDs()
+	enabled := make(map[string]bool, len(all))
+	for _, id := range all {
+		if pc, ok := s.config.Plugins[id]; ok && !pc.Active {
+			continue
+		}
+		enabled[id] = true
+	}
+
+	if prefs != nil {
+		if len(prefs.EnabledPlugins) > 0 {
+			filtered := make(map[string]bool, len(prefs.EnabledPlugins))
+			for _, id := range prefs.EnabledPlugins {
+				if enabled[id] {
+					filtered[id] = true
+				}
+			}
+			enabled = filtered
+		}
+		for _, id := range prefs.DisabledPlugins {
+			delete(enabled, id)
+		}
+	}
+
+	result := make([]string, 0, len(enabled))
+	for id := range enabled {
+		result = append(result, id)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func (s *Server) handleEngines(c *gin.Context) {
