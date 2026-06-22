@@ -13,16 +13,14 @@ import (
 
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
-	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/internal/engine"
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search"
+	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/pkg/models"
 )
 
 func TestMain(m *testing.M) {
 	flag.Set("logtostderr", "true")
-	logger.Init("info", "stdout")
 	os.Exit(m.Run())
 }
 
@@ -77,11 +75,11 @@ func TestCategoriesEndpoint(t *testing.T) {
 func TestConfigEndpoint(t *testing.T) {
 	cfg := &config.Config{
 		Server: config.ServerConfig{
-			Port:            8080,
-			BindAddress:     "0.0.0.0",
-			PublicInstance:  false,
-			Method:          "POST",
-			SecretKey:       "super-secret-do-not-leak",
+			Port:           8080,
+			BindAddress:    "0.0.0.0",
+			PublicInstance: false,
+			Method:         "POST",
+			SecretKey:      "super-secret-do-not-leak",
 		},
 		Search: config.SearchConfig{
 			DefaultLang:     "zh-CN",
@@ -134,12 +132,14 @@ type mockEngineForServer struct {
 	categories []models.Category
 }
 
-func (m *mockEngineForServer) Name() string                       { return m.name }
-func (m *mockEngineForServer) Categories() []models.Category      { return m.categories }
-func (m *mockEngineForServer) Capabilities() engine.Capabilities  { return engine.Capabilities{} }
-func (m *mockEngineForServer) Init(ctx context.Context, cfg engine.EngineInitConfig) bool { return true }
-func (m *mockEngineForServer) Setup(cfg engine.EngineInitConfig) bool                    { return true }
-func (m *mockEngineForServer) About() engine.EngineAbout                                  { return engine.EngineAbout{} }
+func (m *mockEngineForServer) Name() string                      { return m.name }
+func (m *mockEngineForServer) Categories() []models.Category     { return m.categories }
+func (m *mockEngineForServer) Capabilities() engine.Capabilities { return engine.Capabilities{} }
+func (m *mockEngineForServer) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
+	return true
+}
+func (m *mockEngineForServer) Setup(cfg engine.EngineInitConfig) bool { return true }
+func (m *mockEngineForServer) About() engine.EngineAbout              { return engine.EngineAbout{} }
 func (m *mockEngineForServer) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
 	return &models.Response{}, nil
 }
@@ -184,4 +184,3 @@ func makeTestCache(t *testing.T) cache.Cache {
 	}
 	return c
 }
-

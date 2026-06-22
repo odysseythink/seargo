@@ -13,13 +13,10 @@ import (
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/pkg/models"
 )
 
 func TestJSONEngine_Search(t *testing.T) {
-	logger.Init("error", "stderr")
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{

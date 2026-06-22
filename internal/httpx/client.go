@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-
-	"github.com/seargo/seargo/internal/logger"
+	"github.com/odysseythink/mlog"
 )
 
 // ctxKeyHTTPDuration is an unexported context key for passing HTTP duration.
@@ -67,7 +66,7 @@ func (c *Client) R() *RequestBuilder {
 
 // SetProxy is a deprecated noop. Proxy configuration is managed by the Network.
 func (c *Client) SetProxy(proxyURL string) {
-	logger.Warn("Client.SetProxy is deprecated; proxy configuration is managed by Network", "engine", c.engineName)
+	mlog.Warning("Client.SetProxy is deprecated; proxy configuration is managed by Network", "engine", c.engineName)
 }
 
 // WithNetwork returns a copy of the Client bound to a different named Network.

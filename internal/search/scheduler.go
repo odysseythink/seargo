@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/odysseythink/mlog"
 	"github.com/panjf2000/ants/v2"
 
 	"github.com/seargo/seargo/internal/answerer"
@@ -17,7 +18,6 @@ import (
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/plugin"
 	"github.com/seargo/seargo/internal/search/processor"
@@ -104,16 +104,16 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, plugi
 		lookupName := engineKey(ec)
 		eng, ok := engine.Get(lookupName)
 		if !ok {
-			logger.Warn("Engine not found", "engine", lookupName)
+			mlog.Warning("Engine not found", "engine", lookupName)
 			continue
 		}
 		proc, err := processor.NewProcessorFromConfig(eng, ec, suspension, client)
 		if err != nil {
-			logger.Error("Failed to create processor", "engine", lookupName, "error", err)
+			mlog.Error("Failed to create processor", "engine", lookupName, "error", err)
 			continue
 		}
 		processors[lookupName] = proc
-		logger.Info("Engine registered", "engine", lookupName)
+		mlog.Info("Engine registered", "engine", lookupName)
 	}
 
 	// Compute global timeout
@@ -220,12 +220,11 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	}
 
 	// Structured logging: search started
-	log := logger.WithContext(ctx)
-	log.Info("search started",
+	mlog.InfoContext(ctx, "search started",
 		"query_trunc", truncateQuery(req.Query, 64),
 		"engines", len(procs),
 	)
-	log.Debug("search query",
+	mlog.DebugContext(ctx, "search query",
 		"query", req.Query,
 	)
 
@@ -332,7 +331,7 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 				if strings.Contains(strings.ToLower(err.Error()), "parse") {
 					metrics.EngineParserFailures.WithLabelValues(proc.Engine().Name()).Inc()
 				}
-				logger.Warn("engine failed", "engine", proc.Engine().Name(), "error", err)
+				mlog.Warning("engine failed", "engine", proc.Engine().Name(), "error", err)
 				container.MarkUnresponsive(proc.Engine().Name(), err.Error())
 
 				// Observe timing histograms on error
@@ -485,7 +484,6 @@ func (s *Scheduler) cacheKey(parsed *query.ParsedQuery, req *models.Request) str
 	h.Write([]byte(strconv.Itoa(req.PageSize)))
 	return fmt.Sprintf("search:%x", h.Sum64())
 }
-
 
 // recordMetrics 记录结果流指标。
 func (s *Scheduler) recordMetrics(resp *models.Response) {

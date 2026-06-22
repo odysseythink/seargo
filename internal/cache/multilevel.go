@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/seargo/seargo/internal/logger"
+	"github.com/odysseythink/mlog"
 	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/pkg/models"
@@ -122,7 +122,7 @@ func (m *MultiLevel) Set(key string, value *models.Response, ttl time.Duration) 
 	}
 	raw, err := json.Marshal(value)
 	if err != nil {
-		logger.Warn("cache: marshal failed", "key", key, "error", err)
+		mlog.Warning("cache: marshal failed", "key", key, "error", err)
 		return
 	}
 	if ttl <= 0 {
@@ -131,10 +131,10 @@ func (m *MultiLevel) Set(key string, value *models.Response, ttl time.Duration) 
 
 	ctx := context.Background()
 	if err := m.l1.Set(ctx, m.storageKey(key), raw, ttl); err != nil {
-		logger.Warn("cache: L1 write failed", "key", key, "error", err)
+		mlog.Warning("cache: L1 write failed", "key", key, "error", err)
 	}
 	if err := m.l2.Set(ctx, m.storageKey(key), raw, ttl); err != nil {
-		logger.Warn("cache: L2 write failed", "key", key, "error", err)
+		mlog.Warning("cache: L2 write failed", "key", key, "error", err)
 	}
 }
 

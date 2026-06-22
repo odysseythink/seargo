@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/odysseythink/mlog"
 
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/metrics"
 )
 
@@ -21,7 +21,7 @@ func RequestLogger() gin.HandlerFunc {
 		metrics.HTTPRequestDuration.WithLabelValues(c.Request.Method, c.Request.URL.Path).Observe(duration.Seconds())
 
 		rid, _ := c.Get("request_id")
-		logger.Info("http_request",
+		mlog.Info("http_request",
 			"request_id", rid,
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,

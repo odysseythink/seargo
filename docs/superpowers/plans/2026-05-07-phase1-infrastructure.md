@@ -17,9 +17,6 @@ seargo/
 ├── cmd/seargo/
 │   └── main.go                    # Application entry point
 ├── internal/
-│   ├── logger/
-│   │   ├── logger.go              # mlog wrapper
-│   │   └── logger_test.go         # Logger tests
 │   ├── config/
 │   │   ├── config.go              # Config structs + Load + Validate
 │   │   └── config_test.go         # Config tests
@@ -290,106 +287,12 @@ git commit -m "feat: add shared data models"
 
 ## Task 3: Logger (mlog Integration)
 
-**Files:**
-- Create: `internal/logger/logger.go`
-- Create: `internal/logger/logger_test.go`
-
 ### Step 1: Install mlog
 
 ```bash
 go get github.com/odysseythink/mlog
 ```
 
-### Step 2: Write logger wrapper
-
-```go
-// internal/logger/logger.go
-package logger
-
-import (
-	"context"
-	"fmt"
-
-	"github.com/odysseythink/mlog"
-)
-
-var defaultLogger *mlog.Logger
-
-func Init(level string, output string) error {
-	var err error
-	defaultLogger, err = mlog.New(mlog.Config{
-		Level:  level,
-		Output: output,
-		Format: "json",
-	})
-	if err != nil {
-		return fmt.Errorf("init logger: %w", err)
-	}
-	return nil
-}
-
-func Default() *mlog.Logger {
-	if defaultLogger == nil {
-		panic("logger not initialized")
-	}
-	return defaultLogger
-}
-
-func Debug(msg string, args ...any) { Default().Debug(msg, args...) }
-func Info(msg string, args ...any)  { Default().Info(msg, args...) }
-func Warn(msg string, args ...any)  { Default().Warn(msg, args...) }
-func Error(msg string, args ...any) { Default().Error(msg, args...) }
-
-func WithContext(ctx context.Context) *mlog.Logger {
-	if reqID := ctx.Value("request_id"); reqID != nil {
-		return Default().With("request_id", reqID)
-	}
-	return Default()
-}
-```
-
-### Step 3: Write test
-
-```go
-// internal/logger/logger_test.go
-package logger
-
-import (
-	"context"
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
-
-func TestInit(t *testing.T) {
-	err := Init("debug", "stdout")
-	require.NoError(t, err)
-	assert.NotNil(t, Default())
-}
-
-func TestWithContext(t *testing.T) {
-	Init("debug", "stdout")
-	ctx := context.WithValue(context.Background(), "request_id", "abc123")
-	l := WithContext(ctx)
-	assert.NotNil(t, l)
-}
-```
-
-### Step 4: Run test
-
-```bash
-go test ./internal/logger/ -v
-```
-
-Expected: PASS
-
-### Step 5: Commit
-
-```bash
-git add internal/logger/
-git commit -m "feat: integrate mlog logger"
-```
 
 ---
 

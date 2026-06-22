@@ -9,13 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/seargo/seargo/internal/config"
-	"github.com/seargo/seargo/internal/logger"
 )
-
-func init() {
-	// Ensure logger is initialized for tests that call logger.Warn
-	logger.Init("warn", "stderr")
-}
 
 func TestNewClient(t *testing.T) {
 	cfg := &config.Config{

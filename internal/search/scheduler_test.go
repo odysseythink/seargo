@@ -14,17 +14,15 @@ import (
 	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
-	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/internal/engine"
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/search/processor"
 	"github.com/seargo/seargo/internal/search/query"
+	"github.com/seargo/seargo/internal/storage"
 	"github.com/seargo/seargo/pkg/models"
 )
 
 func TestMain(m *testing.M) {
 	flag.Set("logtostderr", "true")
-	logger.Init("warn", "stdout")
 	os.Exit(m.Run())
 }
 
@@ -39,7 +37,7 @@ func (m *mockProcessor) Engine() engine.Engine { return m.eng }
 func (m *mockProcessor) Search(ctx context.Context, q *query.ParsedQuery, page int) (*processor.ProcessorResult, error) {
 	return m.result, m.err
 }
-func (m *mockProcessor) Suspended() bool { return m.suspendedFlag }
+func (m *mockProcessor) Suspended() bool                 { return m.suspendedFlag }
 func (m *mockProcessor) RecordResult(ok bool, err error) {}
 func (m *mockProcessor) GetParams(q *query.ParsedQuery, page int) (*processor.RequestParams, bool) {
 	return &processor.RequestParams{Query: "test", PageNo: 1}, true
@@ -50,12 +48,12 @@ type mockEngineForSched struct {
 	categories []models.Category
 }
 
-func (m *mockEngineForSched) Name() string                            { return m.name }
-func (m *mockEngineForSched) Categories() []models.Category           { return m.categories }
-func (m *mockEngineForSched) Capabilities() engine.Capabilities       { return engine.Capabilities{} }
+func (m *mockEngineForSched) Name() string                                               { return m.name }
+func (m *mockEngineForSched) Categories() []models.Category                              { return m.categories }
+func (m *mockEngineForSched) Capabilities() engine.Capabilities                          { return engine.Capabilities{} }
 func (m *mockEngineForSched) Init(ctx context.Context, cfg engine.EngineInitConfig) bool { return true }
-func (m *mockEngineForSched) Setup(cfg engine.EngineInitConfig) bool                  { return true }
-func (m *mockEngineForSched) About() engine.EngineAbout                               { return engine.EngineAbout{} }
+func (m *mockEngineForSched) Setup(cfg engine.EngineInitConfig) bool                     { return true }
+func (m *mockEngineForSched) About() engine.EngineAbout                                  { return engine.EngineAbout{} }
 func (m *mockEngineForSched) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
 	return &models.Response{}, nil
 }

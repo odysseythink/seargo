@@ -12,13 +12,8 @@ import (
 	"github.com/seargo/seargo/internal/config"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/pkg/models"
 )
-
-func init() {
-	logger.Init("warn", "stderr")
-}
 
 func TestXPathEngine_Search(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

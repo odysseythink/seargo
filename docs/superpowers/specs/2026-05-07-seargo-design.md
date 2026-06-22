@@ -201,7 +201,7 @@ func (s *Scheduler) queryEngines(ctx context.Context, req *models.Request, engin
             
             resp, err := e.Search(engineCtx, req)
             if err != nil {
-                s.logger.Warn("engine failed", "engine", e.Name(), "error", err)
+                mlog.Warning("engine failed", "engine", e.Name(), "error", err)
                 return // 静默忽略失败
             }
             resultCh <- resp.Results

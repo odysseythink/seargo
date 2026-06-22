@@ -17,6 +17,5 @@ type SearchContext struct {
 // AppContext carries application-level services available to plugins.
 type AppContext struct {
 	Config     interface{} // *config.Config — use interface to avoid import cycle
-	Logger     interface{} // *logger.Logger
 	HTTPClient interface{} // *httpx.Client
 }

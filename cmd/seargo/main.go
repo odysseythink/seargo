@@ -10,16 +10,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/odysseythink/mlog"
 	"github.com/seargo/seargo/internal/autocomplete"
 	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/botdetection"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
+	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/favicon"
+	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
-	"github.com/seargo/seargo/internal/logger"
 	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/preferences"
@@ -27,8 +29,6 @@ import (
 	"github.com/seargo/seargo/internal/security"
 	"github.com/seargo/seargo/internal/server"
 	"github.com/seargo/seargo/internal/storage"
-	"github.com/seargo/seargo/internal/httpx"
-	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/pkg/models"
 
 	// Import engines to trigger init() registration
@@ -54,15 +54,15 @@ func convertTTLByCategory(raw map[string]int) map[models.Category]int {
 func loadEngineTraits(path string) engine.EngineTraitsMap {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		logger.Warn("Engine traits file not found, continuing without traits", "path", path)
+		mlog.Warning("Engine traits file not found, continuing without traits", "path", path)
 		return nil
 	}
 	var traits engine.EngineTraitsMap
 	if err := json.Unmarshal(data, &traits); err != nil {
-		logger.Warn("Failed to parse engine traits, continuing without traits", "error", err)
+		mlog.Warning("Failed to parse engine traits, continuing without traits", "error", err)
 		return nil
 	}
-	logger.Info("Loaded engine traits", "engines", len(traits))
+	mlog.Info("Loaded engine traits", "engines", len(traits))
 	return traits
 }
 
@@ -76,17 +76,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := logger.Init("info", "stdout"); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to init logger: %v\n", err)
-		os.Exit(1)
-	}
-
-	logger.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
+	mlog.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
 
 	// Init shared storage
 	sharedStorage, err := storage.NewFromConfig(cfg)
 	if err != nil {
-		logger.Error("Failed to init shared storage", "error", err)
+		mlog.Error("Failed to init shared storage", "error", err)
 		os.Exit(1)
 	}
 	defer sharedStorage.Close()
@@ -99,14 +94,14 @@ func main() {
 		TTLByCategory: convertTTLByCategory(cfg.Cache.TTLByCategory),
 	})
 	if err != nil {
-		logger.Error("Failed to init cache", "error", err)
+		mlog.Error("Failed to init cache", "error", err)
 		os.Exit(1)
 	}
 
 	// Create network registry
 	registry, err := httpx.NewRegistry(cfg)
 	if err != nil {
-		logger.Error("Failed to init network registry", "error", err)
+		mlog.Error("Failed to init network registry", "error", err)
 		os.Exit(1)
 	}
 
@@ -133,25 +128,25 @@ func main() {
 			cfgCategories[i] = models.Category(c)
 		}
 		initConfigs = append(initConfigs, engine.EngineInitConfig{
-			Name:                ec.Name,
-			Shortcut:            ec.Shortcut,
-			Categories:          cfgCategories,
-			Timeout:             ec.Timeout,
-			Extra:               ec.Extra,
-			Paging:              ec.Paging,
-			TimeRangeSupport:    ec.TimeRangeSupport,
-			LanguageSupport:     ec.LanguageSupport,
-			SafeSearch:          ec.SafeSearch,
-			Weight:              ec.Weight,
-			DisplayErrorMsgs:    ec.DisplayErrorMessages,
-			EnableHTTP:          ec.EnableHTTP,
-			Inactive:            ec.Inactive,
-			Disabled:            ec.Disabled,
-			Tokens:              ec.Tokens,
-			Network:             ec.Network,
-			SoftMaxRedirects:    ec.SoftMaxRedirects,
+			Name:                  ec.Name,
+			Shortcut:              ec.Shortcut,
+			Categories:            cfgCategories,
+			Timeout:               ec.Timeout,
+			Extra:                 ec.Extra,
+			Paging:                ec.Paging,
+			TimeRangeSupport:      ec.TimeRangeSupport,
+			LanguageSupport:       ec.LanguageSupport,
+			SafeSearch:            ec.SafeSearch,
+			Weight:                ec.Weight,
+			DisplayErrorMsgs:      ec.DisplayErrorMessages,
+			EnableHTTP:            ec.EnableHTTP,
+			Inactive:              ec.Inactive,
+			Disabled:              ec.Disabled,
+			Tokens:                ec.Tokens,
+			Network:               ec.Network,
+			SoftMaxRedirects:      ec.SoftMaxRedirects,
 			NoResultForHTTPStatus: ec.NoResultForHTTPStatus,
-			RaiseForHTTPError:   ec.RaiseForHTTPError,
+			RaiseForHTTPError:     ec.RaiseForHTTPError,
 		})
 	}
 
@@ -159,15 +154,15 @@ func main() {
 	loader := engine.NewLoader(traits)
 	loadResult, err := loader.Load(context.Background(), initConfigs)
 	if err != nil {
-		logger.Error("Failed to load engines", "error", err)
+		mlog.Error("Failed to load engines", "error", err)
 		os.Exit(1)
 	}
-	logger.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
+	mlog.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
 
 	// Load bangs trie
 	bangTrie, err := bangs.NewBangTrie()
 	if err != nil {
-		logger.Warn("failed to load external bangs database, bangs disabled", "error", err)
+		mlog.Warning("failed to load external bangs database, bangs disabled", "error", err)
 		bangTrie = nil
 	}
 
@@ -196,21 +191,21 @@ func main() {
 
 	// Phase 8: Validate secret key before anything else
 	if err := middleware.ValidateSecretKey(cfg); err != nil {
-		logger.Error("Secret key validation failed", "error", err)
+		mlog.Error("Secret key validation failed", "error", err)
 		os.Exit(1)
 	}
 
 	// Phase 8: Init bot detection
 	bdCfg, err := botdetection.LoadConfig("configs/limiter.toml")
 	if err != nil {
-		logger.Error("Failed to load bot detection config", "error", err)
+		mlog.Error("Failed to load bot detection config", "error", err)
 		os.Exit(1)
 	}
 
 	// Phase 8: Init limiter
 	limCfg, err := limiter.LoadConfig("configs/limiter.toml")
 	if err != nil {
-		logger.Error("Failed to load limiter config", "error", err)
+		mlog.Error("Failed to load limiter config", "error", err)
 		os.Exit(1)
 	}
 	limiterSvc := limiter.New(limCfg, sharedStorage.WithNamespace("limiter"))
@@ -229,7 +224,7 @@ func main() {
 	// Phase 8: Init favicon service
 	favCfg, err := favicon.LoadConfig("configs/favicons.toml")
 	if err != nil {
-		logger.Warn("Failed to load favicon config, using defaults", "error", err)
+		mlog.Warning("Failed to load favicon config, using defaults", "error", err)
 		favCfg = &favicon.Config{}
 	}
 	favSvc := favicon.New(*favCfg, hmacSigner, sharedStorage.WithNamespace("favicon"))
@@ -250,7 +245,7 @@ func main() {
 	// Init scheduler (handles engine registration internally)
 	sched, err := search.NewScheduler(cfg, c, httpClient, nil, nil, bangTrie, traits, enginesStatsStore)
 	if err != nil {
-		logger.Error("Failed to init scheduler", "error", err)
+		mlog.Error("Failed to init scheduler", "error", err)
 		os.Exit(1)
 	}
 
@@ -264,20 +259,20 @@ func main() {
 
 	go func() {
 		if err := srv.Start(); err != nil {
-			logger.Error("Server failed to start", "error", err)
+			mlog.Error("Server failed to start", "error", err)
 			os.Exit(1)
 		}
 	}()
 
 	<-quit
-	logger.Info("Shutting down server...")
+	mlog.Info("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		logger.Error("Server forced to shutdown", "error", err)
+		mlog.Error("Server forced to shutdown", "error", err)
 	}
 
-	logger.Info("Server exited")
+	mlog.Info("Server exited")
 }

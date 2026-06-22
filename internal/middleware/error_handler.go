@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/odysseythink/mlog"
 
 	apperrors "github.com/seargo/seargo/internal/errors"
-	"github.com/seargo/seargo/internal/logger"
 )
 
 func ErrorHandler() gin.HandlerFunc {
@@ -23,7 +23,7 @@ func ErrorHandler() gin.HandlerFunc {
 			return
 		}
 
-		logger.Error("unhandled error", "error", lastErr, "path", c.Request.URL.Path)
+		mlog.Error("unhandled error", "error", lastErr, "path", c.Request.URL.Path)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": apperrors.ErrInternal})
 	}
 }

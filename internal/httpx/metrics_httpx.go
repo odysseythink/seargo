@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/seargo/seargo/internal/logger"
+	"github.com/odysseythink/mlog"
 	"github.com/seargo/seargo/internal/metrics"
 )
 
@@ -34,7 +34,7 @@ func logResponse(engine, network, method, url string, statusCode int, err error)
 	host := parseHost(url)
 	sc := statusClass(statusCode)
 
-	logger.Debug("outbound request",
+	mlog.Debug("outbound request",
 		"engine", engine,
 		"network", network,
 		"method", method,
@@ -45,7 +45,7 @@ func logResponse(engine, network, method, url string, statusCode int, err error)
 	)
 
 	if err != nil {
-		logger.Info("outbound request failed",
+		mlog.Info("outbound request failed",
 			"engine", engine,
 			"network", network,
 			"host", host,
@@ -54,7 +54,7 @@ func logResponse(engine, network, method, url string, statusCode int, err error)
 			"error_class", errorClass(err),
 		)
 	} else {
-		logger.Info("outbound request",
+		mlog.Info("outbound request",
 			"engine", engine,
 			"network", network,
 			"host", host,
