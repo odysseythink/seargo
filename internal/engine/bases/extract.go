@@ -142,6 +142,12 @@ func jsObjStrToJSON(s string) string {
 	return s
 }
 
+// HTMLToText 导出 htmlToText，供配置驱动引擎复用。
+func HTMLToText(html string) string { return htmlToText(html) }
+
+// ResolveURL 导出 extractURL，供配置驱动引擎复用。
+func ResolveURL(baseURL, href string) string { return extractURL(baseURL, href) }
+
 // mustParseHTML is a test helper that parses HTML and panics on error.
 func mustParseHTML(t interface{ Fatalf(string, ...interface{}) }, htmlStr string) *html.Node {
 	doc, err := htmlquery.Parse(strings.NewReader(htmlStr))
