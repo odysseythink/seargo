@@ -12,6 +12,7 @@ import (
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
+	"github.com/seargo/seargo/pkg/models/results"
 )
 
 // XPathConfig defines the extraction rules for an xpath-based engine.
@@ -32,6 +33,9 @@ type XPathConfig struct {
 	// Language
 	LanguageSupport bool
 	LanguageParam   string // query param name for language
+
+	// Typed result support
+	ResultType ResultTypeConfig
 }
 
 // xpathEngine implements engine.Engine using XPath-based HTML scraping.
@@ -75,6 +79,10 @@ func (e *xpathEngine) Setup(cfg engine.EngineInitConfig) bool {
 	if e.cfg.ResultXPath == "" {
 		return false
 	}
+	e.client = cfg.Client
+	if e.cfg.ResultType.Type == "" {
+		e.cfg.ResultType = parseResultTypeConfig(cfg.Extra)
+	}
 	return true
 }
 
@@ -105,36 +113,54 @@ func (e *xpathEngine) Search(ctx context.Context, req *models.Request) (*models.
 		return nil, fmt.Errorf("xpath engine %s: query results: %w", e.name, err)
 	}
 
-	var results []models.Result
+	var typed []results.Result
+	var apiResults []models.Result
 	for _, node := range resultNodes {
-		r := models.Result{
+		base := models.Result{
 			Engine:   e.name,
 			Category: req.Category,
 			Template: "default",
 		}
 
 		if e.cfg.URLXPath != "" {
-			r.URL = evalXPathAttrOne(node, e.cfg.URLXPath, searchURL)
+			base.URL = evalXPathAttrOne(node, e.cfg.URLXPath, searchURL)
 		}
 		if e.cfg.TitleXPath != "" {
-			r.Title = evalXPathGetOne(node, e.cfg.TitleXPath)
+			base.Title = evalXPathGetOne(node, e.cfg.TitleXPath)
 		}
 		if e.cfg.ContentXPath != "" {
-			r.Content = evalXPathGetOne(node, e.cfg.ContentXPath)
+			base.Content = evalXPathGetOne(node, e.cfg.ContentXPath)
 		}
 		if e.cfg.ThumbnailXPath != "" {
-			r.ThumbnailURL = evalXPathAttrOne(node, e.cfg.ThumbnailXPath, searchURL)
+			base.ThumbnailURL = evalXPathAttrOne(node, e.cfg.ThumbnailXPath, searchURL)
 		}
 
-		if r.URL != "" && r.Title != "" {
-			results = append(results, r)
+		if base.URL == "" || base.Title == "" {
+			continue
+		}
+
+		if e.cfg.ResultType.Type != "" {
+			tr := buildTypedResult(node, e.cfg.ResultType, base)
+			typed = append(typed, tr)
+			apiResults = append(apiResults, results.ToAPIResult([]results.Result{tr})...)
+		} else {
+			apiResults = append(apiResults, base)
+		}
+	}
+
+	var raw []any
+	if len(typed) > 0 {
+		raw = make([]any, len(typed))
+		for i, r := range typed {
+			raw[i] = r
 		}
 	}
 
 	return &models.Response{
-		Query:    req.Query,
-		Category: req.Category,
-		Results:  results,
+		Query:        req.Query,
+		Category:     req.Category,
+		Results:      apiResults,
+		TypedResults: raw,
 	}, nil
 }
 
