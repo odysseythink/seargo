@@ -40,7 +40,7 @@ func TestCacheKeyIncludesPageSize(t *testing.T) {
 
 func TestAllCategories(t *testing.T) {
     cats := AllCategories()
-    assert.Len(t, cats, 10)
+    assert.Len(t, cats, 11)
     // First four must match original order
     assert.Equal(t, CategoryGeneral, cats[0])
     assert.Equal(t, CategoryImages, cats[1])
@@ -57,6 +57,7 @@ func TestAllCategories(t *testing.T) {
     assert.True(t, catSet[CategoryScience])
     assert.True(t, catSet[CategoryFiles])
     assert.True(t, catSet[CategorySocialMedia])
+    assert.True(t, catSet[CategoryCode])
 }
 
 func TestRequestNormalize(t *testing.T) {
