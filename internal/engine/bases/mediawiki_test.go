@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -68,4 +69,48 @@ func TestMediaWikiEngine_InvalidConfig(t *testing.T) {
 	eng := NewMediaWikiEngine("bad", nil, MediaWikiConfig{BaseURL: ""})
 	ok := eng.Setup(engine.EngineInitConfig{Name: "bad"})
 	assert.False(t, ok)
+}
+
+
+func TestMediaWikiEngine_APIPath(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.True(t, strings.HasSuffix(r.URL.Path, "/api.php"))
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"query": map[string]interface{}{
+				"search": []map[string]interface{}{
+					{"title": "Ebuild", "pageid": 1, "snippet": "Gentoo ebuild..."},
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	eng := NewMediaWikiEngine("gentoo", []models.Category{models.CategoryIT}, MediaWikiConfig{
+		BaseURL: server.URL + "/",
+		APIPath: "api.php",
+	})
+	ok := eng.Setup(engine.EngineInitConfig{Name: "gentoo"})
+	assert.True(t, ok)
+
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{},
+	}
+	reg, err := httpx.NewRegistry(cfg)
+	require.NoError(t, err)
+	client := httpx.NewClient(reg, "", "gentoo", "test-ua", 0)
+	eng.(*mediaWikiEngine).SetClient(client)
+
+	resp, err := eng.Search(context.Background(), &models.Request{Query: "ebuild", Category: models.CategoryIT})
+	require.NoError(t, err)
+	require.Len(t, resp.Results, 1)
+	assert.Equal(t, "Ebuild", resp.Results[0].Title)
+	assert.Contains(t, resp.Results[0].URL, "/wiki/Ebuild")
 }

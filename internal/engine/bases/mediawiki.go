@@ -14,7 +14,8 @@ import (
 
 // MediaWikiConfig defines the configuration for a MediaWiki API engine.
 type MediaWikiConfig struct {
-	BaseURL string // e.g., "https://en.wikipedia.org/w/api.php"
+	BaseURL string // e.g., "https://en.wikipedia.org"
+	APIPath string // e.g., "w/api.php"; appended to BaseURL if provided
 }
 
 type mediaWikiEngine struct {
@@ -59,7 +60,11 @@ func (e *mediaWikiEngine) Search(ctx context.Context, req *models.Request) (*mod
 		"srlimit":  {"10"},
 	}
 
-	searchURL := e.cfg.BaseURL + "?" + params.Encode()
+	apiURL := e.cfg.BaseURL
+	if e.cfg.APIPath != "" {
+		apiURL = strings.TrimRight(apiURL, "/") + "/" + strings.TrimLeft(e.cfg.APIPath, "/")
+	}
+	searchURL := apiURL + "?" + params.Encode()
 
 	resp, err := e.client.R().SetContext(ctx).Get(searchURL)
 	if err != nil {
@@ -82,11 +87,12 @@ func (e *mediaWikiEngine) Search(ctx context.Context, req *models.Request) (*mod
 
 	var results []models.Result
 	for _, item := range result.Query.Search {
+		wikiTitle := strings.ReplaceAll(item.Title, " ", "_")
 		pageURL := e.cfg.BaseURL
 		if strings.Contains(e.cfg.BaseURL, "/w/api.php") {
-			// Wikipedia convention: spaces → underscores, no percent-encoding on parens
-			wikiTitle := strings.ReplaceAll(item.Title, " ", "_")
 			pageURL = strings.Replace(e.cfg.BaseURL, "/w/api.php", "/wiki/", 1) + wikiTitle
+		} else {
+			pageURL = strings.TrimRight(e.cfg.BaseURL, "/") + "/wiki/" + wikiTitle
 		}
 
 		results = append(results, models.Result{
