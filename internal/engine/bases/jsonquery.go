@@ -29,6 +29,17 @@ func queryRecursive(data interface{}, parts []string) []interface{} {
 	current := parts[0]
 	remaining := parts[1:]
 
+	// 支持 XML-to-JSON 常见的 "$" 文本节点键。
+	if current == "$" {
+		switch v := data.(type) {
+		case map[string]interface{}:
+			if val, ok := v["$"]; ok {
+				return collectValue(val, remaining)
+			}
+		}
+		return nil
+	}
+
 	var results []interface{}
 
 	switch v := data.(type) {
@@ -61,6 +72,18 @@ func collectValue(data interface{}, remaining []string) []interface{} {
 			return arr
 		}
 		return []interface{}{data}
+	}
+
+	next := remaining[0]
+	rest := remaining[1:]
+	if next == "$" {
+		switch v := data.(type) {
+		case map[string]interface{}:
+			if val, ok := v["$"]; ok {
+				return collectValue(val, rest)
+			}
+		}
+		return nil
 	}
 
 	var results []interface{}
