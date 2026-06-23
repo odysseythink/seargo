@@ -88,6 +88,20 @@ func TestToAPIResult_EmptyInput(t *testing.T) {
 	assert.Nil(t, apiResults)
 }
 
+func TestToAPIResult_FileResult(t *testing.T) {
+	fr := &FileResult{
+		BaseResult: BaseResult{
+			Title:  "sample.pdf",
+			URL:    "https://example.com/sample.pdf",
+			Engine: "wikicommons",
+		},
+	}
+	api := ToAPIResult([]Result{fr})
+	assert.Len(t, api, 1)
+	assert.Equal(t, "file", api[0].Kind)
+	assert.Equal(t, "files.html", api[0].Template)
+}
+
 func TestToAPIResult_EngineDataPassthrough(t *testing.T) {
 	mr := &MainResult{
 		BaseResult: BaseResult{

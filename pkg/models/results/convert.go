@@ -22,7 +22,7 @@ func kindTemplate(kind string) string {
 	case "code":
 		return "code.html"
 	case "file":
-		return "file.html"
+		return "files.html"
 	case "map":
 		return "map.html"
 	case "music":
