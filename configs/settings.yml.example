@@ -208,17 +208,6 @@ engines:
     no_result_for_http_status: []
     raise_for_http_error: null
 
-doi_resolvers: {}
-default_doi_resolver: "oadoi.org"
-
-cache:
-  enabled: true
-  local_ttl: 30
-  remote_ttl: 300
-
-storage:
-  backend: "memory"
-
   - name: docker_hub
     engine: docker_hub
     shortcut: dh
@@ -345,3 +334,15 @@ storage:
     timeout: 10.0
     paging: true
     wc_search_type: file
+
+
+doi_resolvers: {}
+default_doi_resolver: "oadoi.org"
+
+cache:
+  enabled: true
+  local_ttl: 30
+  remote_ttl: 300
+
+storage:
+  backend: "memory"

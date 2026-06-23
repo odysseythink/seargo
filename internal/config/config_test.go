@@ -523,3 +523,40 @@ blob_max_bytes = 20480
 		t.Fatalf("blob_max_bytes: got %d, want 20480", cfg.Cache.BlobMaxBytes)
 	}
 }
+
+func TestValidateCategoryCode(t *testing.T) {
+	cfg := builtInDefaults()
+	cfg.Search.DefaultCategory = "code"
+	cfg.Engines = []EngineConfig{
+		{Name: "github_code", Engine: "github_code", Categories: []string{"code"}},
+	}
+	err := cfg.Validate()
+	require.NoError(t, err)
+}
+
+func TestLoad_P2Engines(t *testing.T) {
+	cfg, err := Load("../../configs/settings.yml")
+	require.NoError(t, err)
+
+	names := make(map[string]bool)
+	for _, e := range cfg.Engines {
+		names[e.Name] = true
+	}
+
+	p2 := []string{
+		"docker_hub", "hoogle", "mdn", "mankier",
+		"openairedatasets", "openairepublications",
+		"stackoverflow", "askubuntu", "superuser",
+		"github_code", "gentoo", "wikicommons_files",
+	}
+	for _, name := range p2 {
+		assert.True(t, names[name], "P2 engine %q should be in default config", name)
+	}
+
+	// github_code 使用新增的 code 分类
+	for _, e := range cfg.Engines {
+		if e.Name == "github_code" {
+			assert.Contains(t, e.Categories, "code")
+		}
+	}
+}

@@ -831,9 +831,9 @@ func (c *Config) Validate() error {
 	engineNames := make(map[string]bool)
 	engineShortcuts := make(map[string]string)
 	for i, eng := range c.Engines {
-		lookupName := eng.Engine
+		lookupName := eng.Name
 		if lookupName == "" {
-			lookupName = eng.Name
+			lookupName = eng.Engine
 		}
 		if lookupName == "" {
 			return fmt.Errorf("engine[%d]: name and engine are both empty", i)

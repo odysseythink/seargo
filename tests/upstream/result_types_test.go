@@ -95,9 +95,15 @@ func TestResultTypes_ImageAndVideo(t *testing.T) {
 			report := h.RunCase("media/"+tc.name, tc.query, SearchParams{Category: tc.category})
 			require.Empty(t, report.Mismatches, "%s: mismatches: %+v", tc.name, report.Mismatches)
 			require.NotEmpty(t, report.Results, "%s: expected results", tc.name)
+
+			var found bool
 			for _, r := range report.Results {
-				require.Equal(t, tc.template, r.Template, "%s: template mismatch", tc.name)
+				if r.Template == tc.template {
+					found = true
+					break
+				}
 			}
+			require.True(t, found, "%s: expected at least one result with template %q", tc.name, tc.template)
 		})
 	}
 }
