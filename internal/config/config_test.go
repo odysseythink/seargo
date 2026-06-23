@@ -52,7 +52,7 @@ func TestValidateDuplicateEngineNames(t *testing.T) {
 	cfg := builtInDefaults()
 	cfg.Engines = []EngineConfig{
 		{Name: "google", Engine: "google"},
-		{Name: "google-alt", Engine: "google"},
+		{Name: "google", Engine: "google-alt"},
 	}
 	err := cfg.Validate()
 	require.Error(t, err)
@@ -319,7 +319,7 @@ server:
 engines:
   - name: google
     engine: google
-  - name: google2
+  - name: google
     engine: google
 `,
 			wantErr: true,
