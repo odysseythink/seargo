@@ -91,9 +91,22 @@ func TestWikidataEngine_SearchMockSPARQL(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Len(t, resp.Results, 1)
+	require.Len(t, resp.Results, 2)
 
-	r := resp.Results[0]
+	var kinds []string
+	for _, r := range resp.Results {
+		kinds = append(kinds, r.Kind)
+	}
+	assert.Contains(t, kinds, "infobox")
+	assert.Contains(t, kinds, "keyvalue")
+
+	var r models.Result
+	for _, ri := range resp.Results {
+		if ri.Kind == "infobox" {
+			r = ri
+			break
+		}
+	}
 	assert.Equal(t, "infobox", r.Kind)
 	assert.Equal(t, "Berlin", r.Title)
 	assert.Equal(t, "Capital and largest city of Germany", r.Content)

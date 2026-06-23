@@ -145,6 +145,8 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 			infobox.InfoboxID = articleURL
 		}
 		typed = append(typed, &infobox)
+		kv := infoboxToKeyValue(infobox)
+		typed = append(typed, &kv)
 	}
 
 	raw := make([]any, len(typed))
@@ -157,6 +159,30 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 		Results:      results.ToAPIResult(typed),
 		TypedResults: raw,
 	}, nil
+}
+
+func infoboxToKeyValue(infobox results.InfoboxResult) results.KeyValueResult {
+	kv := results.KeyValueResult{
+		BaseResult: results.BaseResult{
+			Title:    infobox.Title,
+			Content:  infobox.Content,
+			URL:      infobox.URL,
+			Engine:   infobox.Engine,
+			Template: "keyvalue",
+			Category: infobox.Category,
+		},
+		KVMap:      make(map[string]string),
+		Caption:    infobox.Title,
+		KeyTitle:   "Property",
+		ValueTitle: "Value",
+	}
+	for _, attr := range infobox.Attributes {
+		if attr.Label == "" {
+			continue
+		}
+		kv.KVMap[attr.Label] = attr.Value
+	}
+	return kv
 }
 
 func emptyResponse(req *models.Request) *models.Response {
