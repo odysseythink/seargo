@@ -218,3 +218,130 @@ cache:
 
 storage:
   backend: "memory"
+
+  - name: docker_hub
+    engine: docker_hub
+    shortcut: dh
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    display_error_messages: true
+    disabled: false
+  - name: hoogle
+    engine: hoogle
+    shortcut: ho
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    page_size: 20
+    result_xpath: //div[@class="result"]
+    title_xpath: .//div[@class="ans"]//a
+    url_xpath: .//div[@class="ans"]//a/@href
+    content_xpath: .//div[@class="from"]
+    search_url: https://hoogle.haskell.org/?hoogle={query}
+  - name: mdn
+    engine: mdn
+    shortcut: mdn
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    search_url: https://developer.mozilla.org/api/v1/search?q={query}&page={pageno}
+    results_query: documents
+    url_query: mdn_url
+    url_prefix: https://developer.mozilla.org
+    title_query: title
+    content_query: summary
+  - name: mankier
+    engine: mankier
+    shortcut: man
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    search_url: https://www.mankier.com/api/v2/mans/?q={query}
+    results_query: results
+    url_query: url
+    title_query: name
+    content_query: description
+  - name: openairedatasets
+    engine: openairedatasets
+    shortcut: oad
+    categories: [science]
+    weight: 1.0
+    timeout: 5.0
+    paging: true
+    result_type: paper
+    search_url: https://api.openaire.eu/search/datasets?format=json&page={pageno}&size=10&title={query}
+    results_query: response/results/result
+    url_query: metadata/oaf:entity/oaf:result/children/instance/webresource/url/$
+    title_query: metadata/oaf:entity/oaf:result/title/$
+    content_query: metadata/oaf:entity/oaf:result/description/$
+    content_html_to_text: true
+  - name: openairepublications
+    engine: openairepublications
+    shortcut: oap
+    categories: [science]
+    weight: 1.0
+    timeout: 5.0
+    paging: true
+    result_type: paper
+    search_url: https://api.openaire.eu/search/publications?format=json&page={pageno}&size=10&title={query}
+    results_query: response/results/result
+    url_query: metadata/oaf:entity/oaf:result/children/instance/webresource/url/$
+    title_query: metadata/oaf:entity/oaf:result/title/$
+    content_query: metadata/oaf:entity/oaf:result/description/$
+    content_html_to_text: true
+  - name: stackoverflow
+    engine: stackexchange
+    shortcut: st
+    api_site: stackoverflow
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+  - name: askubuntu
+    engine: stackexchange
+    shortcut: ubuntu
+    api_site: askubuntu
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+  - name: superuser
+    engine: stackexchange
+    shortcut: su
+    api_site: superuser
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+  - name: github_code
+    engine: github_code
+    shortcut: ghc
+    categories: [code]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    ghc_auth:
+      type: none
+      token: ""
+    ghc_highlight_matching_lines: true
+    ghc_strip_new_lines: true
+    ghc_strip_whitespace: false
+  - name: gentoo
+    engine: gentoo
+    shortcut: ge
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    base_url: https://wiki.gentoo.org/
+    api_path: api.php
+  - name: wikicommons_files
+    engine: wikicommons
+    shortcut: wcf
+    categories: [files]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    wc_search_type: file

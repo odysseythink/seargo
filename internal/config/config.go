@@ -269,7 +269,7 @@ type MemoryStorageConfig struct {
 var validCategories = map[string]bool{
 	"general": true, "images": true, "videos": true, "news": true,
 	"map": true, "music": true, "it": true, "science": true,
-	"files": true, "social media": true,
+	"files": true, "social media": true, "code": true,
 }
 
 var validHTTPVersions = map[string]bool{"1.0": true, "1.1": true}

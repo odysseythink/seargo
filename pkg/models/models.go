@@ -19,13 +19,14 @@ const (
 	CategoryScience     Category = "science"
 	CategoryFiles       Category = "files"
 	CategorySocialMedia Category = "social media"
+	CategoryCode        Category = "code"
 )
 
 func AllCategories() []Category {
 	return []Category{
 		CategoryGeneral, CategoryImages, CategoryVideos, CategoryNews,
 		CategoryMap, CategoryMusic, CategoryIT, CategoryScience,
-		CategoryFiles, CategorySocialMedia,
+		CategoryFiles, CategorySocialMedia, CategoryCode,
 	}
 }
 
