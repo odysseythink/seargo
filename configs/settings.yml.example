@@ -108,6 +108,10 @@ engines:
     soft_max_redirects: 0
     no_result_for_http_status: []
     raise_for_http_error: null
+    google_params:
+      use_mobile_ui: false
+      extra_params: []
+      consent_cookie: "YES+"
   - name: bing
     engine: bing
     shortcut: b

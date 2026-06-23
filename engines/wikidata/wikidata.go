@@ -147,10 +147,15 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 		typed = append(typed, &infobox)
 	}
 
+	raw := make([]any, len(typed))
+	for i, r := range typed {
+		raw[i] = r
+	}
 	return &models.Response{
-		Query:    req.Query,
-		Category: req.Category,
-		Results:  results.ToAPIResult(typed),
+		Query:        req.Query,
+		Category:     req.Category,
+		Results:      results.ToAPIResult(typed),
+		TypedResults: raw,
 	}, nil
 }
 

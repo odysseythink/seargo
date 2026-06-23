@@ -1,0 +1,20 @@
+name: seargo-upstream
+
+services:
+  searxng:
+    container_name: seargo-upstream
+    image: docker.io/searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - ./configs/searxng-upstream/settings.yml:/etc/searxng/settings.yml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://127.0.0.1:8081/
+      # Route outbound engine traffic through the host's local proxy when one is
+      # available; required in environments where direct HTTPS to search engines
+      # is blocked.  Override via env vars if your proxy runs elsewhere.
+      - HTTP_PROXY=${HTTP_PROXY:-http://host.docker.internal:12001}
+      - HTTPS_PROXY=${HTTPS_PROXY:-http://host.docker.internal:12001}
+      - http_proxy=${HTTP_PROXY:-http://host.docker.internal:12001}
+      - https_proxy=${HTTPS_PROXY:-http://host.docker.internal:12001}

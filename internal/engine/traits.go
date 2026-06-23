@@ -95,6 +95,7 @@ func (t EngineTraits) Resolve(userLocale string) ResolvedLocale {
 	tl := i18n.DefaultTerritoryLanguages()
 
 	// Resolve language
+	var matchedLangKey string // keep the raw key for region fallback
 	if len(t.Languages) > 0 {
 		langKeys := make([]string, 0, len(t.Languages))
 		for k := range t.Languages {
@@ -103,6 +104,7 @@ func (t EngineTraits) Resolve(userLocale string) ResolvedLocale {
 		langLocales := i18n.BuildEngineLocales(langKeys)
 		matched := i18n.GetEngineLocale(userLocale, langLocales, "", tl)
 		if matched != "" {
+			matchedLangKey = matched
 			if v, ok := t.Languages[matched]; ok {
 				result.Language = v
 			}
@@ -111,6 +113,7 @@ func (t EngineTraits) Resolve(userLocale string) ResolvedLocale {
 		if matched == "" {
 			langCode := strings.SplitN(userLocale, "-", 2)[0]
 			langCode = strings.SplitN(langCode, "_", 2)[0]
+			matchedLangKey = langCode
 			if v, ok := t.Languages[langCode]; ok {
 				result.Language = v
 			}
@@ -128,6 +131,39 @@ func (t EngineTraits) Resolve(userLocale string) ResolvedLocale {
 		if matched != "" {
 			if v, ok := t.Regions[matched]; ok {
 				result.Region = v
+			}
+		}
+	}
+
+	// Default-region fallback: if we matched a language but no region,
+	// prefer a known default territory (en-US, zh-CN, etc.) and fall back
+	// to the first region whose key starts with the language code.
+	// Use matchedLangKey (the raw locale key, not the mapped value) to
+	// build candidate keys — e.g. "en-US" not "lang_en-US".
+	if result.Region == "" && matchedLangKey != "" {
+		langBase := strings.SplitN(matchedLangKey, "-", 2)[0]
+		candidates := []string{
+			matchedLangKey + "-US",
+			matchedLangKey + "-GB",
+			matchedLangKey + "-CN",
+			matchedLangKey + "-HK",
+			matchedLangKey + "-TW",
+			langBase + "-US",
+			langBase + "-GB",
+		}
+		for _, cand := range candidates {
+			if v, ok := t.Regions[cand]; ok {
+				result.Region = v
+				break
+			}
+		}
+		if result.Region == "" {
+			prefix := langBase + "-"
+			for regionKey := range t.Regions {
+				if strings.HasPrefix(regionKey, prefix) {
+					result.Region = t.Regions[regionKey]
+					break
+				}
 			}
 		}
 	}

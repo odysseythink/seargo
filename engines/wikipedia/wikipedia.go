@@ -75,7 +75,7 @@ func (w *Wikipedia) Search(ctx context.Context, req *models.Request) (*models.Re
 		articleURL = searchURL
 	}
 
-	var apiResults []models.Result
+	var typed []results.Result
 
 	// Wikipedia search results
 	doc.Find(".mw-search-result").Each(func(i int, s *goquery.Selection) {
@@ -88,27 +88,31 @@ func (w *Wikipedia) Search(ctx context.Context, req *models.Request) (*models.Re
 		snippet := strings.TrimSpace(s.Find(".searchresult").Text())
 
 		if title != "" && href != "" {
-			apiResults = append(apiResults, models.Result{
+			typed = append(typed, results.WrapAPIMainResult(models.Result{
 				Title:    title,
 				URL:      href,
 				Content:  snippet,
 				Engine:   w.Name(),
 				Category: req.Category,
-			})
+			}))
 		}
 	})
 
 	// If the page itself is an article with an infobox, extract it.
 	if doc.Find(".infobox").Length() > 0 {
 		infobox := parseWikipediaInfobox(doc, lang, articleURL)
-		typed := []results.Result{&infobox}
-		apiResults = append(apiResults, results.ToAPIResult(typed)...)
+		typed = append(typed, &infobox)
 	}
 
+	raw := make([]any, len(typed))
+	for i, r := range typed {
+		raw[i] = r
+	}
 	return &models.Response{
-		Query:    req.Query,
-		Category: req.Category,
-		Results:  apiResults,
+		Query:        req.Query,
+		Category:     req.Category,
+		Results:      results.ToAPIResult(typed),
+		TypedResults: raw,
 	}, nil
 }
 

@@ -66,6 +66,12 @@ func (p *OnlineProcessor) Search(ctx context.Context, q *query.ParsedQuery, page
 	if params.ResolvedLocale.Language != "" {
 		req.Language = params.ResolvedLocale.Language
 	}
+	if params.ResolvedLocale.Region != "" {
+		req.Locale = params.ResolvedLocale.Region
+	}
+	if cat, ok := ctx.Value(CtxKeySearchCategory).(models.Category); ok {
+		req.Category = cat
+	}
 	resp, err := p.eng.Search(ctx, req)
 	if err != nil {
 		p.RecordResult(false, err)
@@ -73,10 +79,20 @@ func (p *OnlineProcessor) Search(ctx context.Context, q *query.ParsedQuery, page
 	}
 	p.RecordResult(true, nil)
 
-	// Wrap flat engine results into typed results
-	typedResults := make([]results.Result, 0, len(resp.Results))
-	for _, r := range resp.Results {
-		typedResults = append(typedResults, results.WrapAPIMainResult(r))
+	var typedResults []results.Result
+	if len(resp.TypedResults) > 0 {
+		typedResults = make([]results.Result, 0, len(resp.TypedResults))
+		for _, raw := range resp.TypedResults {
+			if r, ok := raw.(results.Result); ok {
+				typedResults = append(typedResults, r)
+			}
+		}
+	}
+	if len(typedResults) == 0 {
+		typedResults = make([]results.Result, 0, len(resp.Results))
+		for _, r := range resp.Results {
+			typedResults = append(typedResults, results.WrapAPIMainResult(r))
+		}
 	}
 
 	return &ProcessorResult{

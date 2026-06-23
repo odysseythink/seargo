@@ -125,6 +125,31 @@ func TestEngineTraits_Resolve_EmptyTraits(t *testing.T) {
 	}
 }
 
+func TestLoadGoogleTraits(t *testing.T) {
+	data, err := os.ReadFile("../../data/engine_traits.json")
+	require.NoError(t, err)
+
+	var traits EngineTraitsMap
+	require.NoError(t, json.Unmarshal(data, &traits))
+
+	g, ok := traits.Lookup("google")
+	require.True(t, ok, "google traits missing")
+	assert.Equal(t, "traits_v1", g.DataType)
+	assert.Equal(t, "ZZ", g.AllLocale)
+	assert.NotEmpty(t, g.Languages["en"])
+	assert.NotEmpty(t, g.Languages["zh-CN"])
+	assert.NotEmpty(t, g.Regions["en-US"])
+	assert.NotEmpty(t, g.Regions["zh-CN"])
+
+	resolved := g.Resolve("en-US")
+	assert.Equal(t, "lang_en", resolved.Language)
+	assert.Equal(t, "US", resolved.Region)
+	assert.False(t, resolved.All)
+
+	resolvedAll := g.Resolve("all")
+	assert.True(t, resolvedAll.All)
+}
+
 func TestEngineTraits_Resolve_NoMatch(t *testing.T) {
 	traits := EngineTraits{
 		Languages: map[string]string{"en": "en"},

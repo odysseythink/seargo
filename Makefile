@@ -1,5 +1,6 @@
 .PHONY: build test run clean deps lint \
-  update-units update-currencies update-useragents update-traits update-bangs update-data
+  update-units update-currencies update-useragents update-traits update-bangs update-data \
+  test-upstream test-upstream-report upstream-start upstream-stop
 
 BINARY_NAME=seargo
 BUILD_DIR=bin
@@ -40,3 +41,17 @@ update-bangs:
 	cp data/external_bangs.json internal/bangs/external_bangs.json
 
 update-data: update-units update-currencies update-useragents update-traits update-bangs
+
+test-upstream:
+	go test -tags upstream -count=1 -v ./tests/upstream/...
+
+test-upstream-report: test-upstream
+
+upstream-start:
+	docker compose -f docker-compose.upstream.yml up -d
+
+upstream-stop:
+	docker compose -f docker-compose.upstream.yml down
+
+upstream-logs:
+	docker compose -f docker-compose.upstream.yml logs -f

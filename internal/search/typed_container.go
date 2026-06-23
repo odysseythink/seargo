@@ -90,6 +90,9 @@ func (c *TypedResultContainer) mergeResult(engineName, kind string, r models.Res
 		r.Engine = engineName
 		r.Engines = []string{engineName}
 		r.Positions = []int{pos}
+		if r.Category == "" {
+			r.Category = models.CategoryGeneral
+		}
 		if r.Domain == "" {
 			r.Domain = extractDomain(r.URL)
 		}
@@ -498,13 +501,17 @@ func (c *TypedResultContainer) GetEnginesUsed() []string {
 	return names
 }
 
-// GetEnginesFailed returns failed engine names.
+// GetEnginesFailed returns failed engine names in SearXNG-style "name:reason" format.
 func (c *TypedResultContainer) GetEnginesFailed() []string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	var names []string
 	for _, ue := range c.unresponsive {
-		names = append(names, ue.Name)
+		reason := ue.Reason
+		if reason == "" {
+			reason = "error"
+		}
+		names = append(names, ue.Name+":"+reason)
 	}
 	return names
 }

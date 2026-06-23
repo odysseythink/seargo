@@ -184,6 +184,7 @@ type Response struct {
 	Query          string         `json:"query"`
 	Category       Category       `json:"category"`
 	Results        []Result       `json:"results"`
+	TypedResults   []any          `json:"-"`
 	Suggestions    []string       `json:"suggestions"`
 	Answers        []Answer       `json:"answers"`
 	Corrections    []string       `json:"corrections"`

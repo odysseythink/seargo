@@ -61,6 +61,10 @@ func (p *timeZonePlugin) PostSearch(ctx *plugin.SearchContext) []models.Result {
 		cityName = "UTC"
 	} else {
 		city := strings.TrimSpace(parts[1])
+		// Strip common prepositions ("time in Tokyo" -> "Tokyo").
+		city = strings.TrimPrefix(city, "in ")
+		city = strings.TrimPrefix(city, "at ")
+		city = strings.TrimSpace(city)
 		var found bool
 		loc, found = deps.GeoLocationByQuery(city)
 		if !found {

@@ -80,6 +80,13 @@ func TestBaseProcessor_RecordResultNilSuspension(t *testing.T) {
 
 // --- OnlineProcessor tests ---
 
+func TestCtxKeyUserLocale_RoundTrip(t *testing.T) {
+	ctx := context.WithValue(context.Background(), CtxKeyUserLocale, "zh-CN")
+	got, ok := ctx.Value(CtxKeyUserLocale).(string)
+	assert.True(t, ok)
+	assert.Equal(t, "zh-CN", got)
+}
+
 func TestOnlineProcessor_GetParams_Default(t *testing.T) {
 	eng := &mockEngine{name: "google", caps: engine.Capabilities{SupportsSafeSearch: true, SupportsPagination: true, SupportsTimeRange: true}}
 	proc := NewOnlineProcessor(eng, nil, nil)

@@ -16,8 +16,18 @@ func main() {
 	limit := flag.Int("limit", 0, "Max engines to generate (0 = all)")
 	engineName := flag.String("engine", "", "Generate a single engine by name")
 	singleFile := flag.String("file", "", "Generate from a single Python file")
+	googleOutput := flag.String("google-output", "data/engine_traits.json", "Output path for `engine-gen google`")
 
 	flag.Parse()
+
+	if len(flag.Args()) > 0 && flag.Args()[0] == "google" {
+		if err := runGoogleFetch(*googleOutput); err != nil {
+			fmt.Fprintf(os.Stderr, "Error fetching google traits: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Updated google traits in %s\n", *googleOutput)
+		return
+	}
 
 	if *singleFile != "" {
 		generateSingle(*singleFile, *outputDir)
@@ -37,6 +47,7 @@ func main() {
 	fmt.Println("Usage: engine-gen --searxng <path> [--output <dir>] [--base <type>] [--limit <n>]")
 	fmt.Println("       engine-gen --engine <name> --searxng <path>")
 	fmt.Println("       engine-gen --file <python_file>")
+	fmt.Println("       engine-gen google [--google-output <path>]")
 	flag.PrintDefaults()
 }
 

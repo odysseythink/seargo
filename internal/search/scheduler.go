@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"strconv"
@@ -174,6 +175,25 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 		return nil, err
 	}
 
+	// If the query explicitly selected a category (e.g. !images), use it for the response.
+	if len(parsed.Categories) > 0 {
+		req.Category = parsed.Categories[0]
+		req.Categories = parsed.Categories
+	}
+
+	responseQuery := strings.Join(parsed.Terms, " ")
+	if responseQuery == "" {
+		responseQuery = req.Query
+	}
+
+	// Propagate request-level filters to the parsed query for processor selection.
+	if parsed.Lang == "" {
+		parsed.Lang = req.Language
+	}
+	parsed.SafeSearch = req.SafeSearch
+	parsed.TimeRange = req.TimeRange
+	parsed.PageNo = req.Page
+
 	// 2. Cache check
 	if s.cache != nil {
 		key := s.cacheKey(parsed, req)
@@ -228,8 +248,11 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	procs := s.selectProcessors(parsed, req.Category)
 	if len(procs) == 0 {
 		return &models.Response{
-			Query:   req.Query,
-			Results: []models.Result{},
+			Query:         responseQuery,
+			Category:      req.Category,
+			Results:       []models.Result{},
+			EnginesUsed:   []string{},
+			EnginesFailed: []string{},
 		}, nil
 	}
 
@@ -249,7 +272,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 
 	// 6. Execute processors (concurrent)
 	container := NewTypedResultContainer(s.engineWeights)
-	s.executeProcessors(ctx, procs, parsed, req.Page, container, searchCtx, req.Language)
+	s.executeProcessors(ctx, procs, parsed, req.Page, container, searchCtx, req.Language, req.Category)
 
 	// Hook: post_search â plugins append additional results.
 	if s.pluginStorage != nil && searchCtx != nil {
@@ -268,12 +291,9 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	corrections := container.GetCorrections()
 	infoboxes := container.GetInfoboxes()
 	engineData := container.GetEngineData()
-	unresponsive := container.GetUnresponsive()
 
-	// 7. All engines failed
-	if len(results) == 0 && len(unresponsive) > 0 && len(unresponsive) == len(procs) {
-		return nil, fmt.Errorf("all engines failed")
-	}
+	// 7. All engines failed: still return a 200 response with failed engines listed,
+	// matching SearXNG behavior.
 
 	// 8. Paginate
 	pageSize := req.PageSize
@@ -283,8 +303,16 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 	window, total := paginate(results, req.Page, pageSize)
 
 	// 9. Build response
+	enginesUsed := container.GetEnginesUsed()
+	if enginesUsed == nil {
+		enginesUsed = []string{}
+	}
+	enginesFailed := container.GetEnginesFailed()
+	if enginesFailed == nil {
+		enginesFailed = []string{}
+	}
 	response := &models.Response{
-		Query:          req.Query,
+		Query:          responseQuery,
 		Category:       req.Category,
 		Results:        window,
 		Suggestions:    suggestions,
@@ -295,8 +323,8 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 		Total:          total,
 		Page:           req.Page,
 		PageSize:       pageSize,
-		EnginesUsed:    container.GetEnginesUsed(),
-		EnginesFailed:  container.GetEnginesFailed(),
+		EnginesUsed:    enginesUsed,
+		EnginesFailed:  enginesFailed,
 		ResponseTimeMs: time.Since(start).Milliseconds(),
 	}
 
@@ -313,7 +341,7 @@ func (s *Scheduler) Search(ctx context.Context, req *models.Request) (*models.Re
 }
 
 // executeProcessors 并发执行所有 processor，将结果写入 container。
-func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer, searchCtx *plugin.SearchContext, userLocale string) {
+func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Processor, parsed *query.ParsedQuery, page int, container *TypedResultContainer, searchCtx *plugin.SearchContext, userLocale string, category models.Category) {
 	var wg sync.WaitGroup
 
 	for _, p := range procs {
@@ -331,6 +359,11 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 				}
 			}
 
+			// Pass the original user locale so engines can do their own trait resolution.
+			procCtx = context.WithValue(procCtx, processor.CtxKeyUserLocale, userLocale)
+
+			procCtx = context.WithValue(procCtx, processor.CtxKeySearchCategory, category)
+
 			// Initialize HTTP duration holder for this engine call
 			procCtx = httpx.ContextWithHTTPDuration(procCtx)
 
@@ -346,7 +379,11 @@ func (s *Scheduler) executeProcessors(ctx context.Context, procs []processor.Pro
 					metrics.EngineParserFailures.WithLabelValues(proc.Engine().Name()).Inc()
 				}
 				mlog.Warning("engine failed", "engine", proc.Engine().Name(), "error", err)
-				container.MarkUnresponsive(proc.Engine().Name(), err.Error())
+				// Don't report engines that were skipped because the query isn't supported
+				// (e.g. time_range/pagination) as unresponsive; SearXNG omits them too.
+				if !errors.Is(err, processor.ErrUnsupportedSearch) {
+					container.MarkUnresponsive(proc.Engine().Name(), formatUnresponsiveReason(err))
+				}
 
 				// Observe timing histograms on error
 				engineDur := time.Since(engineStart)
@@ -561,4 +598,20 @@ func (s *Scheduler) buildSearchContext(parsed *query.ParsedQuery, req *models.Re
 		TimeRange:   req.TimeRange,
 		UserPlugins: req.EnabledPlugins,
 	}
+}
+
+// formatUnresponsiveReason normalizes engine failure messages to SearXNG-style
+// reasons used in the unresponsive_engines list.
+func formatUnresponsiveReason(err error) string {
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline exceeded") {
+		return "timeout"
+	}
+	if strings.Contains(msg, "captcha") {
+		return "CAPTCHA"
+	}
+	if strings.Contains(msg, "access denied") || strings.Contains(msg, "forbidden") || strings.Contains(msg, "403") {
+		return "Access denied"
+	}
+	return err.Error()
 }

@@ -38,6 +38,20 @@ func TestUserAgentPool_Random_Variation(t *testing.T) {
 	assert.Greater(t, len(seen), 1, "random should produce varied UAs")
 }
 
+func TestGenGSAUserAgent(t *testing.T) {
+	pool := &UserAgentPool{
+		OSes:     []string{"Windows NT 10.0; Win64; x64"},
+		Versions: []string{"151.0"},
+	}
+
+	ua := GenGSAUserAgent(pool)
+	assert.Contains(t, ua, "Mozilla/5.0")
+	assert.Contains(t, ua, "Windows NT 10.0; Win64; x64")
+	assert.Contains(t, ua, "rv:151.0")
+	assert.Contains(t, ua, "Gecko/20100101")
+	assert.Contains(t, ua, "Firefox/151.0")
+}
+
 func TestNewUserAgentPool_FromFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "useragents.json")

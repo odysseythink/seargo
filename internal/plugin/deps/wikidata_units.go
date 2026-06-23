@@ -96,11 +96,19 @@ func LoadUnits(path string) error {
 
 // LookupUnit searches the unit table by symbol (case-insensitive).
 // Returns all matching entries (there may be multiple for symbols like "m").
+// It also accepts common English plurals by stripping a trailing 's'.
 func LookupUnit(symbol string) []UnitEntry {
 	var results []UnitEntry
+	candidates := []string{symbol}
+	if strings.HasSuffix(strings.ToLower(symbol), "s") {
+		candidates = append(candidates, strings.TrimSuffix(symbol, "s"))
+	}
 	for _, u := range unitTable {
-		if strings.EqualFold(u.Symbol, symbol) {
-			results = append(results, u)
+		for _, c := range candidates {
+			if strings.EqualFold(u.Symbol, c) {
+				results = append(results, u)
+				break
+			}
 		}
 	}
 	return results

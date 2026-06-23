@@ -34,6 +34,13 @@ type Config struct {
 	Storage            StorageConfig                `yaml:"storage"`
 }
 
+// GoogleEngineParams holds engine-specific options for the Google engine.
+type GoogleEngineParams struct {
+	UseMobileUI   bool     `yaml:"use_mobile_ui"`
+	ExtraParams   []string `yaml:"extra_params"`
+	ConsentCookie string   `yaml:"consent_cookie"`
+}
+
 // -------- Blocks --------
 
 type GeneralConfig struct {
@@ -218,7 +225,8 @@ type EngineConfig struct {
 	ShortCut             string      `yaml:"short_cut"`
 	SoftMaxRedirects     int         `yaml:"soft_max_redirects"`
 	NoResultForHTTPStatus []int      `yaml:"no_result_for_http_status"`
-	RaiseForHTTPError    interface{} `yaml:"raise_for_http_error"`
+	RaiseForHTTPError    interface{}        `yaml:"raise_for_http_error"`
+	GoogleParams         GoogleEngineParams `yaml:"google_params"`
 }
 
 type UseDefaultSettings struct {

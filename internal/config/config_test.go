@@ -399,6 +399,29 @@ func TestEngineConfigValidation_WeightNegative(t *testing.T) {
 	assert.Contains(t, err.Error(), "weight")
 }
 
+func TestGoogleParams_Load(t *testing.T) {
+	yamlData := `
+engines:
+  - name: google
+    engine: google
+    google_params:
+      use_mobile_ui: true
+      extra_params:
+        - "hl=en"
+        - "safe=off"
+      consent_cookie: "YES+1"
+`
+	cfg := &Config{}
+	err := yaml.Unmarshal([]byte(yamlData), cfg)
+	require.NoError(t, err)
+	require.Len(t, cfg.Engines, 1)
+
+	g := cfg.Engines[0].GoogleParams
+	assert.True(t, g.UseMobileUI)
+	assert.Equal(t, []string{"hl=en", "safe=off"}, g.ExtraParams)
+	assert.Equal(t, "YES+1", g.ConsentCookie)
+}
+
 func TestEngineConfigValidation_TokenEmpty(t *testing.T) {
 	cfg := &Config{Server: ServerConfig{Port: 8080}, Search: SearchConfig{SafeSearch: 1}}
 	cfg.Engines = []EngineConfig{

@@ -34,7 +34,23 @@ func (d *DuckDuckGo) Capabilities() engine.Capabilities {
 		SupportsSafeSearch: true,
 		SupportsLanguage:   true,
 		SupportsPagination: true,
+		SupportsTimeRange:  true,
 	}
+}
+
+// timeRangeParam maps SearXNG-style time range values to DuckDuckGo's df parameter.
+func timeRangeParam(tr string) string {
+	switch tr {
+	case "day":
+		return "d"
+	case "week":
+		return "w"
+	case "month":
+		return "m"
+	case "year":
+		return "y"
+	}
+	return ""
 }
 
 func (d *DuckDuckGo) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
@@ -65,6 +81,10 @@ func (d *DuckDuckGo) Search(ctx context.Context, req *models.Request) (*models.R
 
 	if req.Page > 1 {
 		formData["s"] = strconv.Itoa((req.Page - 1) * 30)
+	}
+
+	if df := timeRangeParam(req.TimeRange); df != "" {
+		formData["df"] = df
 	}
 
 	resp, err := d.client.R().

@@ -83,15 +83,16 @@ func TestLoadEngines_SetupFails_MarksInactive(t *testing.T) {
 func TestLoadEngines_NameValidation(t *testing.T) {
 	loader := NewLoader(nil)
 
-	err := loader.validateName("google_images")
+	err := loader.validateName("google-images")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "underscore")
+	assert.Contains(t, err.Error(), "lowercase alphanumeric")
 
 	err = loader.validateName("Google")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "lowercase")
 
 	assert.NoError(t, loader.validateName("google"))
+	assert.NoError(t, loader.validateName("google_images"))
 	assert.NoError(t, loader.validateName("wikipedia"))
 }
 

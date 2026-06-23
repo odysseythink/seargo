@@ -79,6 +79,26 @@ func (p *UserAgentPool) Reload(path string) error {
 	return nil
 }
 
+// GenGSAUserAgent returns a Google-Search-App style Firefox User-Agent,
+// matching SearXNG's gen_gsa_useragent helper.
+func GenGSAUserAgent(pool *UserAgentPool) string {
+	if pool == nil {
+		pool = fallbackPool()
+	}
+	pool.mu.RLock()
+	oses := pool.OSes
+	versions := pool.Versions
+	pool.mu.RUnlock()
+
+	if len(oses) == 0 || len(versions) == 0 {
+		return "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
+	}
+
+	os := oses[rand.Intn(len(oses))]
+	version := versions[rand.Intn(len(versions))]
+	return "Mozilla/5.0 (" + os + "; rv:" + version + ") Gecko/20100101 Firefox/" + version
+}
+
 // fallbackPool returns a minimal built-in UA pool.
 func fallbackPool() *UserAgentPool {
 	return &UserAgentPool{

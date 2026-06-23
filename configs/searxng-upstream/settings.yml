@@ -1,0 +1,130 @@
+# Minimal SearXNG settings for upstream parity testing.
+# Mounted at /etc/searxng/settings.yml inside the container.
+
+general:
+  debug: true
+  instance_name: "SearXNG (upstream parity)"
+  privacypolicy_url: false
+  donation_url: false
+  contact_url: false
+  enable_metrics: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  formats:
+    - json
+    - html
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "uperasecretkeyforparitytesting-only"
+  # Allow requests from SearGo running on the host
+  limiter: false
+
+ui:
+  static_use_hash: true
+
+doi_resolvers:
+  oadoi.org: 'https://oadoi.org/'
+  doi.org: 'https://doi.org/'
+  sci-hub.se: 'https://sci-hub.se/'
+  sci-hub.st: 'https://sci-hub.st/'
+  sci-hub.ru: 'https://sci-hub.ru/'
+
+default_doi_resolver: 'oadoi.org'
+
+plugins:
+  searx.plugins.self_info.SXNGPlugin:
+    active: true
+  searx.plugins.tracker_url_remover.SXNGPlugin:
+    active: true
+  searx.plugins.hash_plugin.SXNGPlugin:
+    active: true
+  searx.plugins.calculator.SXNGPlugin:
+    active: true
+  searx.plugins.oa_doi_rewrite.SXNGPlugin:
+    active: false
+  searx.plugins.unit_converter.SXNGPlugin:
+    active: true
+  searx.plugins.time_zone.SXNGPlugin:
+    active: true
+
+enabled_plugins:
+  - "Self Information"
+  - "Tracker URL remover"
+  - "Hash plugin"
+  - "Calculator"
+  - "Open Access DOI rewrite"
+  - "Unit converter plugin"
+  - "Timezones plugin"
+
+engines:
+  - name: bing
+    engine: bing
+    shortcut: b
+    categories: [general]
+    timeout: 10.0
+    base_url: https://cn.bing.com
+
+  - name: bing images
+    engine: bing_images
+    shortcut: bii
+    categories: [images]
+    timeout: 10.0
+    base_url: https://cn.bing.com
+
+  - name: bing videos
+    engine: bing_videos
+    shortcut: biv
+    categories: [videos]
+    timeout: 10.0
+    base_url: https://cn.bing.com
+
+  - name: bing news
+    engine: bing_news
+    shortcut: bin
+    categories: [news]
+    timeout: 10.0
+    base_url: https://cn.bing.com
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    categories: [general]
+    display_type: [infobox]
+    timeout: 10.0
+
+  - name: wikidata
+    engine: wikidata
+    shortcut: wd
+    categories: [general]
+    timeout: 10.0
+
+  - name: google
+    engine: google
+    shortcut: g
+    categories: [general]
+    timeout: 10.0
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    categories: [general]
+    timeout: 10.0
+
+outgoing:
+  request_timeout: 10.0
+  max_request_timeout: 20.0
+  enable_http2: false
+  useragent_suffix: ""
+  # Route all engine/plugin HTTP(S) traffic through the host's local proxy;
+  # required when the container cannot reach search engines directly.
+  proxies:
+    all://:
+      - http://host.docker.internal:12001
+  # engines that are allowed to be used in the !bang syntax
+  # keep most common engines enabled
+  traefik_http:
+    accept_selfsigned: true

@@ -13,9 +13,7 @@ import (
 )
 
 func init() {
-	if as := answerer.GlobalAnswerer(); as != nil {
-		as.Register(newRandomAnswerer())
-	}
+	answerer.Register(newRandomAnswerer())
 }
 
 type randomAnswerer struct {

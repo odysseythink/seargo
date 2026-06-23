@@ -72,10 +72,14 @@ func (p *hashPlugin) PostSearch(ctx *plugin.SearchContext) []models.Result {
 		return nil
 	}
 
+	input = strings.TrimSpace(input)
+	answer := fmt.Sprintf("%s hash digest: %s", matches[1], hash)
 	return []models.Result{{
-		Kind:    "answer",
-		Title:   fmt.Sprintf("%s(%q) = %s", algo, input, hash),
-		Content: hash,
-		Engine:  "hash_plugin",
+		Kind:  "answer",
+		Title: answer,
+		Extra: map[string]any{
+			"answer": answer,
+		},
+		Engine: "hash_plugin",
 	}}
 }

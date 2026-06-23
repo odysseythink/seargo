@@ -25,10 +25,9 @@ func (p *calculatorPlugin) Info() plugin.PluginInfo {
 	return plugin.PluginInfo{
 		ID:                "calculator",
 		Name:              "Calculator",
-		Description:       "Evaluate mathematical expressions using the calc prefix",
+		Description:       "Evaluate mathematical expressions",
 		PreferenceSection: "query",
-		Keywords:          []string{"calc"},
-		Examples:          []string{"calc 1+1", "calc 2*3", "calc 10/2", "calc 2^3"},
+		Examples:          []string{"1+1", "2*3", "10/2", "2^3", "calc 1+1"},
 	}
 }
 
@@ -42,11 +41,10 @@ func (p *calculatorPlugin) PostSearch(ctx *plugin.SearchContext) []models.Result
 	}
 
 	q := strings.TrimSpace(ctx.Query)
-	if !strings.HasPrefix(strings.ToLower(q), "calc ") {
-		return nil
+	expr := q
+	if strings.HasPrefix(strings.ToLower(q), "calc ") {
+		expr = strings.TrimSpace(q[5:])
 	}
-
-	expr := strings.TrimSpace(q[5:])
 	if expr == "" {
 		return nil
 	}

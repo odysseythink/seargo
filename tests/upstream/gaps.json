@@ -1,0 +1,12 @@
+[
+  {
+    "name": "suggest/",
+    "pathPrefix": "suggest/",
+    "reason": "Engine suggestions are non-deterministic and differ between instances."
+  },
+  {
+    "name": "plugin/time_zone",
+    "pathPrefix": "plugin/time_zone.answers",
+    "reason": "Time zone formatting may differ until i18n is fully aligned."
+  }
+]

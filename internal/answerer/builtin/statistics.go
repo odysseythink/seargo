@@ -11,9 +11,7 @@ import (
 )
 
 func init() {
-	if as := answerer.GlobalAnswerer(); as != nil {
-		as.Register(newStatisticsAnswerer())
-	}
+	answerer.Register(newStatisticsAnswerer())
 }
 
 type statisticsAnswerer struct {

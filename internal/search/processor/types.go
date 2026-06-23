@@ -18,6 +18,16 @@ var ErrUnsupportedSearch = errors.New("unsupported search")
 type ctxKeyResolvedLocale struct{}
 var CtxKeyResolvedLocale ctxKeyResolvedLocale
 
+type ctxKeySearchCategory struct{}
+// CtxKeySearchCategory carries the request category from the scheduler to the processor.
+var CtxKeySearchCategory ctxKeySearchCategory
+
+// CtxKeyUserLocale carries the original user locale (e.g. "en-US") from the
+// scheduler to engines that need to resolve locale themselves, mirroring
+// SearXNG's "searxng_locale" request parameter.
+type ctxKeyUserLocale struct{}
+var CtxKeyUserLocale ctxKeyUserLocale
+
 // Suspension 定义暂停/恢复能力接口，由 search.SuspensionTracker 实现。
 type Suspension interface {
 	Ban(engineName, errorClass string)

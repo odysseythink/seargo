@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// engineNamePattern validates engine names: lowercase alphanumeric, no underscore.
-var engineNamePattern = regexp.MustCompile(`^[a-z][a-z0-9]*$`)
+// engineNamePattern validates engine names: lowercase alphanumeric and underscores.
+var engineNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // Loader validates engine configs, resolves traits, calls Setup/Init,
 // and builds a validated Registry with category and shortcut maps.
@@ -162,10 +162,10 @@ func (l *Loader) validateConfigs(configs []EngineInitConfig) error {
 	return nil
 }
 
-// validateName checks engine name rules: lowercase, no underscore.
+// validateName checks engine name rules: lowercase alphanumeric with optional underscores.
 func (l *Loader) validateName(name string) error {
 	if !engineNamePattern.MatchString(name) {
-		return fmt.Errorf("engine name must be lowercase alphanumeric without underscore, got %q", name)
+		return fmt.Errorf("engine name must be lowercase alphanumeric (may contain underscores), got %q", name)
 	}
 	return nil
 }
