@@ -14,6 +14,7 @@ import (
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
+	"github.com/seargo/seargo/pkg/models/results"
 )
 
 func TestJSONEngine_Search(t *testing.T) {
@@ -59,6 +60,62 @@ func TestJSONEngine_Search(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, resp.Results, 2)
 	assert.Equal(t, "JSON Result 1", resp.Results[0].Title)
+}
+
+func TestJSONEngine_Search_ResultTypePaper(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"items": []map[string]interface{}{
+				{
+					"title":   "Paper One",
+					"url":     "https://example.com/paper",
+					"summary": "Abstract",
+					"doi":     "10.1/1",
+					"journal": "J",
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	eng := NewJSONEngine("test_paper", []models.Category{models.CategoryScience}, JSONEngineConfig{
+		SearchURL:    server.URL + "/api?q={query}",
+		ResultsQuery: "items",
+		URLQuery:     "url",
+		TitleQuery:   "title",
+		ContentQuery: "summary",
+		ResultType: ResultTypeConfig{
+			Type:         ResultTypePaper,
+			DOIQuery:     "doi",
+			JournalQuery: "journal",
+		},
+	})
+
+	ok := eng.Setup(engine.EngineInitConfig{Name: "test_paper"})
+	require.True(t, ok)
+
+	reg, err := httpx.NewRegistry(&config.Config{
+		Outgoing: config.OutgoingConfig{
+			EnableHTTP:     true,
+			RequestTimeout: 10.0,
+			MaxRedirects:   5,
+			EnableHTTP2:    true,
+		},
+	})
+	require.NoError(t, err)
+	client := httpx.NewClient(reg, "", "test_paper", "test-ua", 0)
+	eng.(*jsonEngine).SetClient(client)
+
+	resp, err := eng.Search(context.Background(), &models.Request{Query: "q", Category: models.CategoryScience})
+	require.NoError(t, err)
+	require.Len(t, resp.Results, 1)
+	assert.Equal(t, "paper", resp.Results[0].Kind)
+	assert.Equal(t, "paper.html", resp.Results[0].Template)
+	require.Len(t, resp.TypedResults, 1)
+	pr, ok := resp.TypedResults[0].(*results.PaperResult)
+	require.True(t, ok)
+	assert.Equal(t, "10.1/1", pr.DOI)
 }
 
 func TestJSONEngine_InvalidConfig(t *testing.T) {

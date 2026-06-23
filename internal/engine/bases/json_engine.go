@@ -10,6 +10,7 @@ import (
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
 	"github.com/seargo/seargo/pkg/models"
+	"github.com/seargo/seargo/pkg/models/results"
 )
 
 // JSONEngineConfig defines the extraction rules for a JSON-API-based engine.
@@ -28,6 +29,9 @@ type JSONEngineConfig struct {
 	// Language
 	LanguageSupport bool
 	LanguageParam   string
+
+	// Typed result support
+	ResultType ResultTypeConfig
 }
 
 type jsonEngine struct {
@@ -64,6 +68,10 @@ func (e *jsonEngine) Setup(cfg engine.EngineInitConfig) bool {
 	if e.cfg.ResultsQuery == "" {
 		return false
 	}
+	e.client = cfg.Client
+	if e.cfg.ResultType.Type == "" {
+		e.cfg.ResultType = parseResultTypeConfig(cfg.Extra)
+	}
 	return true
 }
 
@@ -90,7 +98,8 @@ func (e *jsonEngine) Search(ctx context.Context, req *models.Request) (*models.R
 
 	resultsList := jsonQuery(data, e.cfg.ResultsQuery)
 
-	var results []models.Result
+	var typed []results.Result
+	var apiResults []models.Result
 	for _, item := range resultsList {
 		resultItem, ok := item.(map[string]interface{})
 		if !ok {
@@ -101,22 +110,41 @@ func (e *jsonEngine) Search(ctx context.Context, req *models.Request) (*models.R
 		titleVal := firstString(jsonQuery(resultItem, e.cfg.TitleQuery))
 		contentVal := firstString(jsonQuery(resultItem, e.cfg.ContentQuery))
 
-		if urlVal != "" && titleVal != "" {
-			results = append(results, models.Result{
-				Title:    titleVal,
-				URL:      urlVal,
-				Content:  contentVal,
-				Engine:   e.name,
-				Category: req.Category,
-				Template: "default",
-			})
+		if urlVal == "" || titleVal == "" {
+			continue
+		}
+
+		base := models.Result{
+			Title:    titleVal,
+			URL:      urlVal,
+			Content:  contentVal,
+			Engine:   e.name,
+			Category: req.Category,
+			Template: "default",
+		}
+
+		if e.cfg.ResultType.Type != "" {
+			tr := buildTypedResult(resultItem, e.cfg.ResultType, base)
+			typed = append(typed, tr)
+			apiResults = append(apiResults, results.ToAPIResult([]results.Result{tr})...)
+		} else {
+			apiResults = append(apiResults, base)
+		}
+	}
+
+	var raw []any
+	if len(typed) > 0 {
+		raw = make([]any, len(typed))
+		for i, r := range typed {
+			raw[i] = r
 		}
 	}
 
 	return &models.Response{
-		Query:    req.Query,
-		Category: req.Category,
-		Results:  results,
+		Query:        req.Query,
+		Category:     req.Category,
+		Results:      apiResults,
+		TypedResults: raw,
 	}, nil
 }
 
