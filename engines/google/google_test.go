@@ -257,6 +257,40 @@ func TestGoogleSearch_MockHTML(t *testing.T) {
 	assert.Contains(t, requestedPath, "start=0")
 }
 
+func TestGoogleInfo_SGSSCookie(t *testing.T) {
+	g := &Google{}
+	info := g.googleInfo("all", engine.EngineTraits{AllLocale: "ZZ"}, config.GoogleEngineParams{
+		ConsentCookie: "YES+cb.20210328-17-p0.en+FX+",
+		SGSSCookie:    "ES_ICY:12345:",
+	})
+	assert.Equal(t, "YES+cb.20210328-17-p0.en+FX+", info.cookies["CONSENT"])
+	assert.Equal(t, "ES_ICY:12345:", info.cookies["SG_SS"])
+}
+
+func TestDoRequest_SGSSCookieSent(t *testing.T) {
+	g := &Google{}
+	var cookieHeader string
+	client, srv := newGoogleTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookieHeader = r.Header.Get("Cookie")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("<html></html>"))
+	}))
+	defer srv.Close()
+
+	g.client = client
+	info := googleInfo{
+		headers: map[string]string{"Accept": "*/*"},
+		cookies: map[string]string{
+			"CONSENT": "YES+",
+			"SG_SS":   "ES_ICY:12345:",
+		},
+	}
+	_, err := g.doRequest(context.Background(), srv.URL, info)
+	require.NoError(t, err)
+	assert.Contains(t, cookieHeader, "CONSENT=YES+")
+	assert.Contains(t, cookieHeader, "SG_SS=ES_ICY:12345:")
+}
+
 func TestCandidateURLs(t *testing.T) {
 	g := &Google{}
 	base := "https://www.google.com/search?q=golang"

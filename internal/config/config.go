@@ -39,6 +39,7 @@ type GoogleEngineParams struct {
 	UseMobileUI   bool     `yaml:"use_mobile_ui"`
 	ExtraParams   []string `yaml:"extra_params"`
 	ConsentCookie string   `yaml:"consent_cookie"`
+	SGSSCookie    string   `yaml:"sgss_cookie"`
 }
 
 // -------- Blocks --------

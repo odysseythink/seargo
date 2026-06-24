@@ -158,11 +158,15 @@ func (g *Google) tryEndpoints(ctx context.Context, baseURL string, info googleIn
 func (g *Google) doRequest(ctx context.Context, urlStr string, info googleInfo) (*httpx.Response, error) {
 	consent := info.cookies["CONSENT"]
 	ua := httpx.GenGSAUserAgent(g.uaPool)
-	return g.client.R().SetContext(ctx).
+	req := g.client.R().SetContext(ctx).
 		SetHeader("Accept", info.headers["Accept"]).
-		SetHeader("User-Agent", ua).
-		SetHeader("Cookie", "CONSENT="+consent).
-		Get(urlStr)
+		SetHeader("User-Agent", ua)
+	cookies := []string{"CONSENT=" + consent}
+	if sgss, ok := info.cookies["SG_SS"]; ok && sgss != "" {
+		cookies = append(cookies, "SG_SS="+sgss)
+	}
+	req.SetHeader("Cookie", strings.Join(cookies, "; "))
+	return req.Get(urlStr)
 }
 
 func (g *Google) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
@@ -368,6 +372,9 @@ func (g *Google) googleInfo(userLocale string, traits engine.EngineTraits, cfg c
 		consent = "YES+"
 	}
 	info.cookies["CONSENT"] = consent
+	if sgss := cfg.SGSSCookie; sgss != "" {
+		info.cookies["SG_SS"] = sgss
+	}
 
 	return info
 }
