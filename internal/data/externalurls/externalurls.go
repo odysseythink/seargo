@@ -3,9 +3,11 @@
 package externalurls
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -159,6 +161,58 @@ func GetEarthCoordinatesURL(lat, lon float64, zoom int) string {
 	url = strings.Replace(url, "${longitude}", fmt.Sprintf("%g", lon), -1)
 	url = strings.Replace(url, "${zoom}", fmt.Sprintf("%d", zoom), -1)
 	return url
+}
+
+const wikimediaImageDefaultPrefix = "https://commons.wikimedia.org/wiki/Special:FilePath/"
+
+// GetWikimediaThumbnailURL converts a Wikimedia Commons "Special:FilePath"
+// URL into a static upload.wikimedia.org thumbnail URL. It follows the same
+// MD5-path algorithm used by upstream SearXNG.
+func GetWikimediaThumbnailURL(raw string) string {
+	fields := strings.Fields(raw)
+	if len(fields) == 0 {
+		return raw
+	}
+	first := fields[0]
+	if !strings.Contains(first, wikimediaImageDefaultPrefix) {
+		return raw
+	}
+
+	rest := strings.TrimPrefix(first, wikimediaImageDefaultPrefix)
+	parts := strings.SplitN(rest, "?", 2)
+	name := strings.ReplaceAll(parts[0], "%20", "_")
+	name, _ = url.PathUnescape(name)
+	if name == "" {
+		return raw
+	}
+
+	nameFirst := name
+	nameSecond := name
+	if strings.Contains(strings.Fields(name)[0], ".svg") {
+		nameSecond = name + ".png"
+	}
+
+	if len(parts) < 2 {
+		return raw
+	}
+	sizePart := parts[1]
+	eq := strings.Index(sizePart, "=")
+	if eq < 0 {
+		return raw
+	}
+	size := sizePart[eq+1:]
+	if amp := strings.Index(size, "&"); amp >= 0 {
+		size = size[:amp]
+	}
+	if size == "" {
+		return raw
+	}
+
+	sum := fmt.Sprintf("%x", md5.Sum([]byte(name)))
+	return fmt.Sprintf(
+		"https://upload.wikimedia.org/wikipedia/commons/thumb/%s/%s/%s/%spx-%s",
+		sum[:1], sum[:2], nameFirst, size, nameSecond,
+	)
 }
 
 // AreaToOSMZoom converts an area in square kilometers to an OpenStreetMap zoom level.

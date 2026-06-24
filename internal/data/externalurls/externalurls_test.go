@@ -159,3 +159,32 @@ func TestLoadRealCatalogFile(t *testing.T) {
 	assert.Equal(t, "https://www.imdb.com/title/tt123", GetExternalURL("imdb_title", "tt123", "default"))
 	assert.Equal(t, "https://x.com/seargo", GetExternalURL("twitter_profile", "seargo", "default"))
 }
+
+func TestGetWikimediaThumbnailURL(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{
+			name: "svg flag",
+			raw:  "https://commons.wikimedia.org/wiki/Special:FilePath/Flag_of_Germany.svg?width=300",
+			want: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Flag_of_Germany.svg/300px-Flag_of_Germany.svg.png",
+		},
+		{
+			name: "jpg photo",
+			raw:  "https://commons.wikimedia.org/wiki/Special:FilePath/Albert_Einstein_Head.jpg?width=300",
+			want: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Albert_Einstein_Head.jpg/300px-Albert_Einstein_Head.jpg",
+		},
+		{
+			name: "non-commons url is preserved",
+			raw:  "https://example.com/image.png?width=300",
+			want: "https://example.com/image.png?width=300",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, GetWikimediaThumbnailURL(tc.raw))
+		})
+	}
+}
