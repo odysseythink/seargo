@@ -131,3 +131,32 @@ func TestTypedContainer_AddInfoboxesMerge(t *testing.T) {
 	assert.Len(t, infos[0].Attributes, 2)
 	assert.Len(t, infos[0].URLs, 2)
 }
+
+func TestTypedContainer_InfoboxNotInResults(t *testing.T) {
+	c := NewTypedResultContainer(map[string]float64{})
+	c.Extend("wikidata", []models.Result{
+		{
+			Kind:    "infobox",
+			Title:   "Berlin",
+			URL:     "https://en.wikipedia.org/wiki/Berlin",
+			Content: "Capital of Germany",
+			Engine:  "wikidata",
+			Extra:   map[string]any{"infobox_id": "https://en.wikipedia.org/wiki/Berlin"},
+		},
+		{
+			Kind:     "main",
+			Title:    "Berlin tourism",
+			URL:      "https://example.com/berlin",
+			Engine:   "some-engine",
+			Category: models.CategoryGeneral,
+		},
+	}, 0)
+
+	results := c.Results()
+	require.Len(t, results, 1)
+	assert.Equal(t, "main", results[0].Kind)
+
+	infoboxes := c.GetInfoboxes()
+	require.Len(t, infoboxes, 1)
+	assert.Equal(t, "Berlin", infoboxes[0].Title)
+}
