@@ -304,3 +304,18 @@ func TestCandidateURLs(t *testing.T) {
 	require.Len(t, mobile, 3)
 	assert.Equal(t, "https://www.google.com/search?hl=en&gbv=1&q=golang", mobile[1])
 }
+
+func TestCandidateURLs_Expanded(t *testing.T) {
+	g := &Google{}
+	base := "https://www.google.com/search?q=golang"
+
+	urls := g.candidateURLs(base, "golang", config.GoogleEngineParams{})
+	require.Len(t, urls, 3)
+	assert.Equal(t, base+"&udm=14", urls[0])
+	assert.Equal(t, "https://www.google.com/search?hl=en&gws_rd=ssl&q=golang", urls[1])
+	assert.Equal(t, base+"&gbv=1", urls[2])
+
+	mobile := g.candidateURLs(base, "golang", config.GoogleEngineParams{UseMobileUI: true})
+	require.Len(t, mobile, 4)
+	assert.Equal(t, "https://www.google.com/search?hl=en&gbv=1&q=golang", mobile[2])
+}

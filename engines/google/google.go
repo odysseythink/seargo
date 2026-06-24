@@ -134,6 +134,7 @@ func (g *Google) buildSearchURL(query string, page int, timeRange string, safeSe
 
 func (g *Google) candidateURLs(baseURL, query string, cfg config.GoogleEngineParams) []string {
 	urls := []string{baseURL + "&udm=14"}
+	urls = append(urls, "https://www.google.com/search?hl=en&gws_rd=ssl&q="+url.QueryEscape(query))
 	if cfg.UseMobileUI {
 		urls = append(urls, "https://www.google.com/search?hl=en&gbv=1&q="+url.QueryEscape(query))
 	}
