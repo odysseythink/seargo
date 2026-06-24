@@ -234,8 +234,10 @@ func TestDo_TimeoutDefaults(t *testing.T) {
 	reg, _ := NewRegistry(cfg)
 	c := NewClient(reg, "", "test", "", 15*time.Second)
 	rb := c.R()
+	// The "default" network has Timeout = 3s (from outgoing.request_timeout),
+	// which takes precedence over client.defaultTimeout.
 	timeout := rb.effectiveTimeout(reg.Get("default"))
-	assert.Equal(t, 15*time.Second, timeout, "should use client defaultTimeout")
+	assert.Equal(t, 3*time.Second, timeout, "network timeout should precede client default")
 }
 
 func TestDo_TimeoutOverride(t *testing.T) {
@@ -372,8 +374,34 @@ func TestDo_TimeoutUsesEngineNetwork(t *testing.T) {
 	reg, err := NewRegistry(cfg)
 	require.NoError(t, err)
 
+	// Client with defaultTimeout=0 — network timeout should apply.
 	c := NewClient(reg, "", "duckduckgo", "", 0)
 	rb := c.R()
 	timeout := rb.effectiveTimeout(reg.Get("duckduckgo"))
 	assert.Equal(t, 1500*time.Millisecond, timeout, "should use engine network timeout")
+}
+
+func TestDo_Timeout_NetworkOverridesClientDefault(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  10.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{
+			{Name: "duckduckgo", Engine: "duckduckgo", Timeout: 1.5},
+		},
+	}
+
+	reg, err := NewRegistry(cfg)
+	require.NoError(t, err)
+
+	// Client with defaultTimeout=10s — network timeout (1.5s) should still win.
+	c := NewClient(reg, "", "duckduckgo", "", 10*time.Second)
+	rb := c.R()
+	timeout := rb.effectiveTimeout(reg.Get("duckduckgo"))
+	assert.Equal(t, 1500*time.Millisecond, timeout, "network timeout must override client default")
 }

@@ -47,10 +47,11 @@ func (w *Wikipedia) About() engine.EngineAbout {
 func (w *Wikipedia) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
 	store := wikimedia.NewWikiNetlocStore(cfg.Client, wikiNetlocCachePath())
 	mapping, ok := store.LoadOrFetch(ctx)
-	if !ok {
-		return false
+	if ok {
+		w.wikiNetloc = mapping
 	}
-	w.wikiNetloc = mapping
+	// Non-fatal: if the netloc fetch/cache fails, ResolveWikiNetloc falls back
+	// to <lang>.wikipedia.org, so the engine can still serve requests.
 	return true
 }
 
@@ -66,8 +67,12 @@ func (w *Wikipedia) Search(ctx context.Context, req *models.Request) (*models.Re
 	}
 
 	query := req.Query
-	if query == strings.ToLower(query) {
-		query = strings.Title(query)
+	// Title-case single-word queries for better REST API matching, but only when
+	// the input is all lower-case.  strings.Title is deprecated but kept here
+	// because importing golang.org/x/text for a single call adds unacceptable
+	// dependency weight for this project.
+	if query == strings.ToLower(query) && !strings.Contains(query, " ") {
+		query = strings.ToUpper(query[:1]) + query[1:]
 	}
 
 	_, netloc := wikimedia.ResolveWikiNetloc(w.traits, w.wikiNetloc, req.Language)

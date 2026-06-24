@@ -62,7 +62,6 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 		SetHeader("Accept", "application/sparql-results+json").
 		SetHeader("User-Agent", "SearGo/1.0 (wikidata engine)").
 		SetFormData(map[string]string{"query": query}).
-		SetTimeout(10 * time.Second).
 		Post(sparqlEndpoint)
 	if err != nil && httpResp == nil {
 		return emptyResponse(req), nil

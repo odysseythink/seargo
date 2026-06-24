@@ -323,16 +323,18 @@ func (rb *RequestBuilder) Do(ctx context.Context) (*Response, error) {
 	return resp, nil
 }
 
-// effectiveTimeout returns the effective timeout: explicit > client default > network timeout > 3s.
+// effectiveTimeout returns the effective timeout: explicit > network timeout > client default > 3s.
+// Per-engine network timeout takes precedence over the global client default so that
+// engine-specific timeout values in settings.yml are honored.
 func (rb *RequestBuilder) effectiveTimeout(network *Network) time.Duration {
 	if rb.timeout > 0 {
 		return rb.timeout
 	}
-	if rb.client.defaultTimeout > 0 {
-		return rb.client.defaultTimeout
-	}
 	if network != nil && network.Timeout > 0 {
 		return network.Timeout
+	}
+	if rb.client.defaultTimeout > 0 {
+		return rb.client.defaultTimeout
 	}
 	return 3 * time.Second
 }
