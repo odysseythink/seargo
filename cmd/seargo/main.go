@@ -42,6 +42,12 @@ import (
 	_ "github.com/seargo/seargo/engines/brave"
 	_ "github.com/seargo/seargo/engines/duckduckgo"
 	_ "github.com/seargo/seargo/engines/google"
+	_ "github.com/seargo/seargo/engines/configured"
+	_ "github.com/seargo/seargo/engines/dockerhub"
+	_ "github.com/seargo/seargo/engines/gentoo"
+	_ "github.com/seargo/seargo/engines/githubcode"
+	_ "github.com/seargo/seargo/engines/stackexchange"
+	_ "github.com/seargo/seargo/engines/wikicommons"
 	_ "github.com/seargo/seargo/engines/wikidata"
 	_ "github.com/seargo/seargo/engines/wikipedia"
 	_ "github.com/seargo/seargo/engines/yahoo"
@@ -138,6 +144,18 @@ func main() {
 		for i, c := range ec.Categories {
 			cfgCategories[i] = models.Category(c)
 		}
+
+		engineName := ec.Engine
+		if engineName == "" {
+			engineName = ec.Name
+		}
+		engClient := httpClient
+		if ec.Network != "" {
+			engClient = httpClient.WithNetwork(ec.Network)
+		} else if engineName != "" {
+			engClient = httpClient.WithNetwork(engineName)
+		}
+
 		initConfigs = append(initConfigs, engine.EngineInitConfig{
 			Name:                  ec.Name,
 			Shortcut:              ec.Shortcut,
@@ -159,7 +177,7 @@ func main() {
 			NoResultForHTTPStatus: ec.NoResultForHTTPStatus,
 			RaiseForHTTPError:     ec.RaiseForHTTPError,
 			GoogleParams:          ec.GoogleParams,
-			Client:                httpClient,
+			Client:                engClient,
 		})
 	}
 

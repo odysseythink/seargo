@@ -353,3 +353,27 @@ func TestDo_POST_Builder(t *testing.T) {
 	_, err := rb.Post("http://127.0.0.1:1/nonexistent")
 	assert.Error(t, err) // connection refused
 }
+
+func TestDo_TimeoutUsesEngineNetwork(t *testing.T) {
+	cfg := &config.Config{
+		Outgoing: config.OutgoingConfig{
+			RequestTimeout:  3.0,
+			PoolConnections: 100,
+			PoolMaxsize:     10,
+			KeepaliveExpiry: 5.0,
+			MaxRedirects:    30,
+			EnableHTTP:      true,
+		},
+		Engines: []config.EngineConfig{
+			{Name: "duckduckgo", Engine: "duckduckgo", Timeout: 1.5},
+		},
+	}
+
+	reg, err := NewRegistry(cfg)
+	require.NoError(t, err)
+
+	c := NewClient(reg, "", "duckduckgo", "", 0)
+	rb := c.R()
+	timeout := rb.effectiveTimeout(reg.Get("duckduckgo"))
+	assert.Equal(t, 1500*time.Millisecond, timeout, "should use engine network timeout")
+}
