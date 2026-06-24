@@ -190,6 +190,11 @@ func main() {
 	}
 	mlog.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
 
+	// Wait for all async Init goroutines to complete so that engines relying on
+	// network-bound Init (e.g. Wikipedia fetching wiki_netloc) are registered
+	// in the engine registry before the scheduler builds its processor map.
+	loader.Wait(30 * time.Second)
+
 	// Load bangs trie
 	bangTrie, err := bangs.NewBangTrie()
 	if err != nil {
