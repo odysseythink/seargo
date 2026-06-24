@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestToAPIResult_MainResult(t *testing.T) {
@@ -114,4 +115,54 @@ func TestToAPIResult_EngineDataPassthrough(t *testing.T) {
 	apiResults := ToAPIResult([]Result{mr})
 	assert.NotNil(t, apiResults[0].Extra)
 	assert.Equal(t, "value", apiResults[0].Extra["key"])
+}
+
+func TestToAPIResult_CodeResult(t *testing.T) {
+	cr := &CodeResult{
+		BaseResult: BaseResult{
+			Title:  "main.go",
+			URL:    "https://github.com/foo/bar/blob/main.go",
+			Engine: "github_code",
+		},
+		Repository:   "foo/bar",
+		CodeLanguage: "go",
+	}
+	api := ToAPIResult([]Result{cr})
+	require.Len(t, api, 1)
+	assert.Equal(t, "code", api[0].Kind)
+	assert.Equal(t, "code.html", api[0].Template)
+	assert.Equal(t, "go", api[0].Extra["code_language"])
+}
+
+func TestToAPIResult_PaperResult(t *testing.T) {
+	pr := &PaperResult{
+		BaseResult: BaseResult{
+			Title:  "A Sample Paper",
+			URL:    "https://example.com/paper",
+			Engine: "openairepublications",
+		},
+		DOI: "10.1000/xyz",
+	}
+	api := ToAPIResult([]Result{pr})
+	require.Len(t, api, 1)
+	assert.Equal(t, "paper", api[0].Kind)
+	assert.Equal(t, "paper.html", api[0].Template)
+	assert.Equal(t, "10.1000/xyz", api[0].Extra["doi"])
+}
+
+func TestToAPIResult_KeyValueResult(t *testing.T) {
+	kv := &KeyValueResult{
+		BaseResult: BaseResult{
+			Title:  "Albert Einstein",
+			Engine: "wikidata",
+		},
+		KVMap: map[string]string{
+			"date of birth": "1879-03-14",
+		},
+	}
+	api := ToAPIResult([]Result{kv})
+	require.Len(t, api, 1)
+	assert.Equal(t, "keyvalue", api[0].Kind)
+	assert.Equal(t, "keyvalue.html", api[0].Template)
+	assert.Equal(t, "1879-03-14", api[0].Extra["kv_map"].(map[string]string)["date of birth"])
 }
