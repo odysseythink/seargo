@@ -1,0 +1,447 @@
+general:
+  instance_name: "SearGo"
+  debug: false
+  enable_metrics: true
+
+brand:
+  issue_url: "https://github.com/searxng/searxng/issues"
+  docs_url: "https://docs.searxng.org"
+  public_instances: "https://searx.space"
+  wiki_url: "https://github.com/searxng/searxng/wiki"
+  new_issue_url: "https://github.com/searxng/searxng/issues/new"
+
+search:
+  safe_search: 1
+  autocomplete: "google"
+  autocomplete_min: 4
+  default_lang: "en-US"
+  default_category: "general"
+  languages: ["zh-CN", "en", "en-US"]
+  max_results: 10
+  ban_time_on_fail: 5.0
+  max_ban_time_on_fail: 120.0
+  formats: ["html", "json"]
+  max_page: 0
+  suspended_times:
+    SearxEngineAccessDenied: 86400
+    SearxEngineCaptcha: 86400
+    SearxEngineTooManyRequests: 3600
+    cf_SearxEngineCaptcha: 1296000
+    cf_SearxEngineAccessDenied: 86400
+    recaptcha_SearxEngineCaptcha: 604800
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  limiter: false
+  public_instance: false
+  http_protocol_version: "1.0"
+  method: "POST"
+  secret_key: "123"
+
+outgoing:
+  request_timeout: 10.0
+  useragent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
+  enable_http2: false
+  proxies:
+    all://:
+      - http://127.0.0.1:12001
+  pool_connections: 100
+  pool_maxsize: 10
+  keepalive_expiry: 5.0
+  max_redirects: 30
+  retries: 0
+  using_tor_proxy: false
+  enable_http: true
+  retry_on_http_error: [403, 429, 503]
+  networks: {}
+
+ui:
+  default_theme: "auto"
+  cache_url: "https://web.archive.org/web/"
+  search_on_category_select: true
+  hotkeys: "default"
+  url_formatting: "pretty"
+
+preferences:
+  lock: []
+
+valkey:
+
+plugins: {}
+
+answerers:
+  currency:
+    active: true
+  weather:
+    active: true
+
+categories_as_tabs:
+  general:
+    engines: []
+  images:
+    engines: []
+  videos:
+    engines: []
+  news:
+    engines: []
+  map:
+    engines: []
+  music:
+    engines: []
+  it:
+    engines:
+      - docker_hub
+      - hoogle
+      - mdn
+      - mankier
+      - stackoverflow
+      - askubuntu
+      - superuser
+      - gentoo
+      - github_code
+  science:
+    engines:
+      - openairedatasets
+      - openairepublications
+  files:
+    engines:
+      - wikicommons
+  social media:
+    engines: []
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+    google_params:
+      use_mobile_ui: false
+      extra_params: []
+      consent_cookie: "YES+"
+  - name: bing
+    engine: bing
+    shortcut: b
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: bing_images
+    engine: bing_images
+    shortcut: bi
+    categories: [images]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: bing_videos
+    engine: bing_videos
+    shortcut: bv
+    categories: [videos]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: bing_news
+    engine: bing_news
+    shortcut: bn
+    categories: [news]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: brave
+    engine: brave
+    shortcut: br
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: false
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: wikidata
+    engine: wikidata
+    shortcut: wd
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: false
+    time_range_support: false
+    language_support: true
+    safesearch: false
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+  - name: yahoo
+    engine: yahoo
+    shortcut: y
+    categories: [general]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    time_range_support: true
+    language_support: true
+    safesearch: true
+    display_error_messages: true
+    enable_http: false
+    disabled: false
+    inactive: false
+    network: ""
+    tokens: []
+    soft_max_redirects: 0
+    no_result_for_http_status: []
+    raise_for_http_error: null
+
+  - name: docker_hub
+    engine: docker_hub
+    shortcut: dh
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    display_error_messages: true
+    disabled: false
+  - name: hoogle
+    engine: hoogle
+    shortcut: ho
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    page_size: 20
+    result_xpath: //div[@class="result"]
+    title_xpath: .//div[@class="ans"]//a
+    url_xpath: .//div[@class="ans"]//a/@href
+    content_xpath: .//div[@class="from"]
+    search_url: https://hoogle.haskell.org/?hoogle={query}
+  - name: mdn
+    engine: mdn
+    shortcut: mdn
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    search_url: https://developer.mozilla.org/api/v1/search?q={query}&page={pageno}
+    results_query: documents
+    url_query: mdn_url
+    url_prefix: https://developer.mozilla.org
+    title_query: title
+    content_query: summary
+  - name: mankier
+    engine: mankier
+    shortcut: man
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    search_url: https://www.mankier.com/api/v2/mans/?q={query}
+    results_query: results
+    url_query: url
+    title_query: name
+    content_query: description
+  - name: openairedatasets
+    engine: openairedatasets
+    shortcut: oad
+    categories: [science]
+    weight: 1.0
+    timeout: 5.0
+    paging: true
+    result_type: paper
+    search_url: https://api.openaire.eu/search/datasets?format=json&page={pageno}&size=10&title={query}
+    results_query: response/results/result
+    url_query: metadata/oaf:entity/oaf:result/children/instance/webresource/url/$
+    title_query: metadata/oaf:entity/oaf:result/title/$
+    content_query: metadata/oaf:entity/oaf:result/description/$
+    content_html_to_text: true
+  - name: openairepublications
+    engine: openairepublications
+    shortcut: oap
+    categories: [science]
+    weight: 1.0
+    timeout: 5.0
+    paging: true
+    result_type: paper
+    search_url: https://api.openaire.eu/search/publications?format=json&page={pageno}&size=10&title={query}
+    results_query: response/results/result
+    url_query: metadata/oaf:entity/oaf:result/children/instance/webresource/url/$
+    title_query: metadata/oaf:entity/oaf:result/title/$
+    content_query: metadata/oaf:entity/oaf:result/description/$
+    content_html_to_text: true
+  - name: stackoverflow
+    engine: stackexchange
+    shortcut: st
+    api_site: stackoverflow
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+  - name: askubuntu
+    engine: stackexchange
+    shortcut: ubuntu
+    api_site: askubuntu
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+  - name: superuser
+    engine: stackexchange
+    shortcut: su
+    api_site: superuser
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+  - name: github_code
+    engine: github_code
+    shortcut: ghc
+    categories: [code]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    ghc_auth:
+      type: none
+      token: ""
+    ghc_highlight_matching_lines: true
+    ghc_strip_new_lines: true
+    ghc_strip_whitespace: false
+  - name: gentoo
+    engine: gentoo
+    shortcut: ge
+    categories: [it]
+    weight: 1.0
+    timeout: 10.0
+    base_url: https://wiki.gentoo.org/
+    api_path: api.php
+  - name: wikicommons_files
+    engine: wikicommons
+    shortcut: wcf
+    categories: [files]
+    weight: 1.0
+    timeout: 10.0
+    paging: true
+    wc_search_type: file
+
+
+doi_resolvers: {}
+default_doi_resolver: "oadoi.org"
+
+cache:
+  enabled: true
+  local_ttl: 30
+  remote_ttl: 300
+
+storage:
+  backend: "memory"
+
