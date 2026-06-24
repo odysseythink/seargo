@@ -19,6 +19,24 @@ func init() {
 	register("mankier", []models.Category{models.CategoryIT})
 	register("openairedatasets", []models.Category{models.CategoryScience})
 	register("openairepublications", []models.Category{models.CategoryScience})
+	// stackexchange 引擎的多实例别名：Loader 根据配置文件中的 engine: stackexchange
+	// 字段和 api_site extra 参数区分实例，此处仅注册名称以通过引擎注册表检查。
+	engine.Register("stackoverflow", &configuredEngine{
+		name:              "stackoverflow",
+		defaultCategories: []models.Category{models.CategoryIT},
+	})
+	engine.Register("askubuntu", &configuredEngine{
+		name:              "askubuntu",
+		defaultCategories: []models.Category{models.CategoryIT},
+	})
+	engine.Register("superuser", &configuredEngine{
+		name:              "superuser",
+		defaultCategories: []models.Category{models.CategoryIT},
+	})
+	engine.Register("wikicommons_files", &configuredEngine{
+		name:              "wikicommons_files",
+		defaultCategories: []models.Category{models.CategoryFiles},
+	})
 }
 
 func register(name string, cats []models.Category) {

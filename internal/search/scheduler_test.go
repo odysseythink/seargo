@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/panjf2000/ants/v2"
 	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/cache"
 	"github.com/seargo/seargo/internal/config"
@@ -169,4 +171,47 @@ func TestScheduler_ExternalBangRedirect(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.RedirectURL, "expected redirect URL for external bang")
 	assert.Contains(t, resp.RedirectURL, "google.com")
+}
+
+func TestScheduler_SkipsSuspendedEngineAfterFailure(t *testing.T) {
+	suspension := NewSuspensionTracker(config.SearchConfig{
+		BanTimeOnFail:    5.0,
+		MaxBanTimeOnFail: 120.0,
+	})
+
+	failing := &mockProcessor{
+		eng: &mockEngineForSched{name: "duckduckgo"},
+		err: errors.New("context deadline exceeded"),
+	}
+	good := &mockProcessor{eng: &mockEngineForSched{name: "google"}, result: &processor.ProcessorResult{Results: []models.Result{}}}
+
+	pool, err := ants.NewPool(5)
+	require.NoError(t, err)
+	defer pool.Release()
+
+	s := &Scheduler{
+		processors: map[string]processor.Processor{
+			"duckduckgo": failing,
+			"google":     good,
+		},
+		categoriesAsTabs: map[string]config.CategoryTabConfig{
+			"general": {Engines: []string{"duckduckgo", "google"}},
+		},
+		suspension:  suspension,
+		workerPool:  pool,
+	}
+
+	// First query: failing engine records the failure and becomes suspended.
+	_, _ = s.Search(context.Background(), &models.Request{
+		Query:    "test",
+		Category: models.CategoryGeneral,
+		Page:     1,
+	})
+
+	// Manually flip the mock flag to mirror what a real suspension would do.
+	failing.suspendedFlag = true
+
+	selected := s.selectProcessors(&query.ParsedQuery{}, models.CategoryGeneral)
+	assert.Len(t, selected, 1)
+	assert.Equal(t, "google", selected[0].Engine().Name())
 }

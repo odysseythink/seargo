@@ -15,7 +15,8 @@ import (
 )
 
 type mockSuspension struct {
-	banned map[string]bool
+	banned    map[string]bool
+	lastClass string
 }
 
 func newMockSuspension() *mockSuspension {
@@ -24,6 +25,7 @@ func newMockSuspension() *mockSuspension {
 
 func (m *mockSuspension) Ban(engineName, errorClass string) {
 	m.banned[engineName] = true
+	m.lastClass = errorClass
 }
 
 func (m *mockSuspension) IsSuspended(engineName string) bool {
@@ -135,6 +137,23 @@ func TestOnlineProcessor_SearchFailure(t *testing.T) {
 	_, err := proc.Search(context.Background(), q, 1)
 	assert.Error(t, err)
 	assert.True(t, ms.IsSuspended(eng.Name()), "403 should trigger suspension")
+}
+
+func TestOnlineProcessor_SearchTimeoutSuspends(t *testing.T) {
+	eng := &mockEngine{
+		name: "duckduckgo",
+		caps: engine.Capabilities{SupportsPagination: true},
+		searchErr: context.DeadlineExceeded,
+	}
+	ms := newMockSuspension()
+	proc := NewOnlineProcessor(eng, ms, nil)
+
+	q := &query.ParsedQuery{Terms: []string{"test"}}
+	_, err := proc.Search(context.Background(), q, 1)
+
+	assert.Error(t, err)
+	assert.True(t, ms.IsSuspended("duckduckgo"), "timeout should suspend the engine")
+	assert.Equal(t, "SearxEngineTooManyRequests", ms.lastClass)
 }
 
 // --- OfflineProcessor tests ---
