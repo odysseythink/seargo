@@ -26,11 +26,11 @@ var listOfWikipediasURL = defaultListURL
 func SparqlEscape(s string) string {
 	repls := []struct{ old, new string }{
 		{"\\", "\\\\"},
-		{"\t", "\\\t"},
-		{"\n", "\\\n"},
-		{"\r", "\\\r"},
-		{"\b", "\\\b"},
-		{"\f", "\\\f"},
+		{"\t", "\\t"},
+		{"\n", "\\n"},
+		{"\r", "\\r"},
+		{"\b", "\\b"},
+		{"\f", "\\f"},
 		{"\"", "\\\""},
 		{"'", "\\'"},
 	}
