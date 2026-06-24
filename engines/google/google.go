@@ -246,50 +246,49 @@ func (g *Google) parseResults(resp *httpx.Response) ([]models.Result, []string) 
 	}
 
 	var results []models.Result
-	doc.Find("a[data-ved]").Each(func(i int, s *goquery.Selection) {
-		if class, exists := s.Attr("class"); exists && class != "" {
-			return
-		}
-		titleDiv := s.Find("div[style]").First()
-		if titleDiv.Length() == 0 {
-			return
-		}
-		title := strings.TrimSpace(titleDiv.Text())
 
-		rawURL, exists := s.Attr("href")
-		if !exists {
+	// Modern result container: .g with a link and snippet.
+	doc.Find("div.g").Each(func(i int, gSel *goquery.Selection) {
+		link := gSel.Find("a[href]").FilterFunction(func(_ int, s *goquery.Selection) bool {
+			href, _ := s.Attr("href")
+			return strings.HasPrefix(href, "/url?q=") || strings.HasPrefix(href, "http")
+		}).First()
+		if link.Length() == 0 {
 			return
 		}
 
-		var resultURL string
-		if strings.HasPrefix(rawURL, "/url?q=") {
-			q := strings.TrimPrefix(rawURL, "/url?q=")
-			if idx := strings.Index(q, "&sa=U"); idx != -1 {
-				q = q[:idx]
+		title := strings.TrimSpace(link.Find("h3").Text())
+		if title == "" {
+			title = strings.TrimSpace(link.Text())
+		}
+		if title == "" {
+			return
+		}
+
+		rawURL, _ := link.Attr("href")
+		resultURL := g.resolveResultURL(rawURL)
+		if resultURL == "" {
+			return
+		}
+
+		content := strings.TrimSpace(gSel.Find("div.VwiC3b").Text())
+		if content == "" {
+			content = strings.TrimSpace(gSel.Find("div.s3v94d, div.ILfuVd").Text())
+		}
+
+		thumbnail := ""
+		if img := link.Find("img").First(); img.Length() > 0 {
+			thumbnail, _ = img.Attr("src")
+		}
+		if thumbnail == "" {
+			if img := gSel.Find("img").First(); img.Length() > 0 {
+				thumbnail, _ = img.Attr("src")
 			}
-			resultURL, _ = url.QueryUnescape(q)
-		} else {
-			resultURL = rawURL
 		}
-
-		content := ""
-		s.Parent().Find("div.ilUpNd.H66NU.aSRlid").Each(func(_ int, c *goquery.Selection) {
-			c.Find("script").Remove()
-			if content == "" {
-				content = strings.TrimSpace(c.Text())
-			}
-		})
-
-		var thumbnail string
-		if img := s.Find("img").First(); img.Length() > 0 {
-			if src, exists := img.Attr("src"); exists {
-				thumbnail = src
-				if strings.HasPrefix(thumbnail, "data:image") {
-					if id, exists := img.Attr("id"); exists {
-						if real, ok := dataMap[id]; ok {
-							thumbnail = real
-						}
-					}
+		if strings.HasPrefix(thumbnail, "data:image") {
+			if id, exists := link.Find("img").First().Attr("id"); exists {
+				if real, ok := dataMap[id]; ok {
+					thumbnail = real
 				}
 			}
 		}
@@ -303,6 +302,59 @@ func (g *Google) parseResults(resp *httpx.Response) ([]models.Result, []string) 
 		})
 	})
 
+	// Legacy fallback: direct <a data-ved> scan.
+	if len(results) == 0 {
+		doc.Find("a[data-ved]").Each(func(i int, s *goquery.Selection) {
+			if class, exists := s.Attr("class"); exists && class != "" {
+				return
+			}
+			titleDiv := s.Find("div[style]").First()
+			if titleDiv.Length() == 0 {
+				return
+			}
+			title := strings.TrimSpace(titleDiv.Text())
+
+			rawURL, exists := s.Attr("href")
+			if !exists {
+				return
+			}
+			resultURL := g.resolveResultURL(rawURL)
+			if resultURL == "" {
+				return
+			}
+
+			content := ""
+			s.Parent().Find("div.ilUpNd.H66NU.aSRlid").Each(func(_ int, c *goquery.Selection) {
+				c.Find("script").Remove()
+				if content == "" {
+					content = strings.TrimSpace(c.Text())
+				}
+			})
+
+			thumbnail := ""
+			if img := s.Find("img").First(); img.Length() > 0 {
+				if src, exists := img.Attr("src"); exists {
+					thumbnail = src
+					if strings.HasPrefix(thumbnail, "data:image") {
+						if id, exists := img.Attr("id"); exists {
+							if real, ok := dataMap[id]; ok {
+								thumbnail = real
+							}
+						}
+					}
+				}
+			}
+
+			results = append(results, models.Result{
+				Title:        title,
+				URL:          resultURL,
+				Content:      content,
+				Engine:       g.Name(),
+				ThumbnailURL: thumbnail,
+			})
+		})
+	}
+
 	var suggestions []string
 	doc.Find("div.gGQDvd.iIWm4b a").Each(func(i int, s *goquery.Selection) {
 		if text := strings.TrimSpace(s.Text()); text != "" {
@@ -311,6 +363,23 @@ func (g *Google) parseResults(resp *httpx.Response) ([]models.Result, []string) 
 	})
 
 	return results, suggestions
+}
+
+func (g *Google) resolveResultURL(rawURL string) string {
+	if strings.HasPrefix(rawURL, "/url?q=") {
+		q := strings.TrimPrefix(rawURL, "/url?q=")
+		if idx := strings.Index(q, "&"); idx != -1 {
+			q = q[:idx]
+		}
+		if u, err := url.QueryUnescape(q); err == nil {
+			return u
+		}
+		return q
+	}
+	if strings.HasPrefix(rawURL, "http") {
+		return rawURL
+	}
+	return ""
 }
 
 func (g *Google) googleInfo(userLocale string, traits engine.EngineTraits, cfg config.GoogleEngineParams) googleInfo {

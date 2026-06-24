@@ -319,3 +319,45 @@ func TestCandidateURLs_Expanded(t *testing.T) {
 	require.Len(t, mobile, 4)
 	assert.Equal(t, "https://www.google.com/search?hl=en&gbv=1&q=golang", mobile[2])
 }
+
+func TestParseResults_NewMarkup(t *testing.T) {
+	g := &Google{}
+	html := `
+<html>
+<body>
+  <div class="g">
+    <div class="yuRUbf">
+      <a data-ved="abc" href="/url?q=https%3A%2F%2Fgo.dev&sa=Uxyz">
+        <h3>The Go Programming Language</h3>
+      </a>
+    </div>
+    <div class="VwiC3b yXK7lf lVm3ye r025kc hJNv6b Hdw6tb">Go is an open source programming language.</div>
+  </div>
+  <div class="gGQDvd iIWm4b"><a>go programming language</a></div>
+</body>
+</html>`
+
+	results, suggestions := g.parseResults(&httpx.Response{Body: []byte(html)})
+	require.Len(t, results, 1)
+	assert.Equal(t, "The Go Programming Language", results[0].Title)
+	assert.Equal(t, "https://go.dev", results[0].URL)
+	assert.Equal(t, "Go is an open source programming language.", results[0].Content)
+	require.Len(t, suggestions, 1)
+	assert.Equal(t, "go programming language", suggestions[0])
+}
+
+func TestParseResults_NonResultLinkSurvives(t *testing.T) {
+	g := &Google{}
+	html := `
+<html>
+<body>
+  <a href="/about">About Google</a>
+  <a data-ved="x" href="/url?q=https%3A%2F%2Fgo.dev"><div style="">Go</div></a>
+  <div class="ilUpNd H66NU aSRlid">The Go Programming Language.</div>
+</body>
+</html>`
+
+	results, _ := g.parseResults(&httpx.Response{Body: []byte(html)})
+	require.Len(t, results, 1)
+	assert.Equal(t, "Go", results[0].Title)
+}
