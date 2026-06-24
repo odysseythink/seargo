@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/seargo/seargo/engines/wikimedia"
 	"github.com/seargo/seargo/internal/data/externalurls"
 	"github.com/seargo/seargo/internal/engine"
 	"github.com/seargo/seargo/internal/httpx"
@@ -21,74 +20,22 @@ func init() {
 	engine.Register("wikidata", &Wikidata{})
 }
 
-// sparqlEndpoint is the Wikidata SPARQL endpoint. It is a variable so tests can
-// override it with a local mock server.
 var sparqlEndpoint = "https://query.wikidata.org/sparql"
 
-// queryTemplate is the SPARQL query used to search for entities and fetch a
-// fixed catalog of properties. Placeholders are %QUERY%, %LANGUAGE%, %SELECT%,
-// and %WHERE%.
-const queryTemplate = `PREFIX wd: <http://www.wikidata.org/entity/>
-PREFIX wdt: <http://www.wikidata.org/prop/direct/>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-PREFIX schema: <http://schema.org/>
-PREFIX wikibase: <http://wikiba.se/ontology#>
-PREFIX bd: <http://www.bigdata.com/rdf#>
-PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
-
-SELECT ?item ?itemLabel ?itemDescription%SELECT%
-WHERE {
-  SERVICE wikibase:mwapi {
-    bd:serviceParam wikibase:api "EntitySearch" .
-    bd:serviceParam wikibase:endpoint "www.wikidata.org" .
-    bd:serviceParam mwapi:search "%QUERY%" .
-    bd:serviceParam mwapi:language "%LANGUAGE%" .
-    ?item wikibase:apiOutputItem mwapi:item .
-  }
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "%LANGUAGE%,en". }
-%WHERE%
-}
-LIMIT 10
-`
-
-// dummyEntityURLs are Wikidata entities that should never be returned as results.
-var dummyEntityURLs = map[string]bool{
-	"http://www.wikidata.org/entity/Q16958":  true, // Wikimedia disambiguation page
-	"https://www.wikidata.org/entity/Q16958": true,
-}
-
-// Wikidata queries Wikidata SPARQL and returns InfoboxResult values.
 type Wikidata struct {
 	client *httpx.Client
 }
 
-// Name returns the engine name.
 func (w *Wikidata) Name() string { return "wikidata" }
 
-// Categories returns the categories this engine serves.
 func (w *Wikidata) Categories() []models.Category {
 	return []models.Category{models.CategoryGeneral}
 }
 
-// Capabilities describes engine features.
 func (w *Wikidata) Capabilities() engine.Capabilities {
-	return engine.Capabilities{
-		SupportsLanguage: true,
-	}
+	return engine.Capabilities{SupportsLanguage: true}
 }
 
-// Init performs any asynchronous initialization.
-func (w *Wikidata) Init(ctx context.Context, cfg engine.EngineInitConfig) bool {
-	return true
-}
-
-// Setup receives the engine's runtime configuration.
-func (w *Wikidata) Setup(cfg engine.EngineInitConfig) bool {
-	w.client = cfg.Client
-	return true
-}
-
-// About returns descriptive metadata for the engine.
 func (w *Wikidata) About() engine.EngineAbout {
 	return engine.EngineAbout{
 		Website:    "https://www.wikidata.org",
@@ -96,14 +43,20 @@ func (w *Wikidata) About() engine.EngineAbout {
 	}
 }
 
-// Search queries Wikidata SPARQL and returns infobox results.
+func (w *Wikidata) Init(ctx context.Context, cfg engine.EngineInitConfig) bool { return true }
+
+func (w *Wikidata) Setup(cfg engine.EngineInitConfig) bool {
+	w.client = cfg.Client
+	return true
+}
+
 func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Response, error) {
 	if w.client == nil {
 		return emptyResponse(req), nil
 	}
 
-	language := resolveLanguage(req.Language)
-	query, attrs := buildEntitySearchQuery(req.Query, language)
+	lang := resolveLanguage(req.Language)
+	query, attrs := buildEntitySearchQuery(req.Query, lang)
 
 	httpResp, err := w.client.R().SetContext(ctx).
 		SetHeader("Accept", "application/sparql-results+json").
@@ -111,7 +64,10 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 		SetFormData(map[string]string{"query": query}).
 		SetTimeout(10 * time.Second).
 		Post(sparqlEndpoint)
-	if err != nil {
+	if err != nil && httpResp == nil {
+		return emptyResponse(req), nil
+	}
+	if httpResp == nil {
 		return emptyResponse(req), nil
 	}
 	if httpResp.StatusCode != 200 {
@@ -124,7 +80,6 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 	}
 
 	seen := make(map[string]bool)
-	var typed []results.Result
 	for _, b := range sparqlResp.Results.Bindings {
 		item := b["item"]
 		entityURL := item.Value
@@ -138,17 +93,22 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 			continue
 		}
 
-		infobox := buildInfoboxFromBinding(b, attrs, language, entityURL, title)
-		// Prefer the Wikipedia article URL as the canonical infobox ID so that
-		// Wikidata and Wikipedia results for the same entity can be merged.
-		if articleURL := extractRaw(b, "article"); articleURL != "" {
-			infobox.InfoboxID = articleURL
-		}
-		typed = append(typed, &infobox)
-		kv := infoboxToKeyValue(infobox)
-		typed = append(typed, &kv)
+		infobox := buildInfoboxFromBinding(b, attrs, lang, entityURL, title)
+		return responseWithInfobox(req, &infobox), nil
 	}
 
+	return emptyResponse(req), nil
+}
+
+func emptyResponse(req *models.Request) *models.Response {
+	return &models.Response{
+		Query:    req.Query,
+		Category: req.Category,
+	}
+}
+
+func responseWithInfobox(req *models.Request, infobox *results.InfoboxResult) *models.Response {
+	typed := []results.Result{infobox}
 	raw := make([]any, len(typed))
 	for i, r := range typed {
 		raw[i] = r
@@ -158,38 +118,6 @@ func (w *Wikidata) Search(ctx context.Context, req *models.Request) (*models.Res
 		Category:     req.Category,
 		Results:      results.ToAPIResult(typed),
 		TypedResults: raw,
-	}, nil
-}
-
-func infoboxToKeyValue(infobox results.InfoboxResult) results.KeyValueResult {
-	kv := results.KeyValueResult{
-		BaseResult: results.BaseResult{
-			Title:    infobox.Title,
-			Content:  infobox.Content,
-			URL:      infobox.URL,
-			Engine:   infobox.Engine,
-			Template: "keyvalue",
-			Category: infobox.Category,
-		},
-		KVMap:      make(map[string]string),
-		Caption:    infobox.Title,
-		KeyTitle:   "Property",
-		ValueTitle: "Value",
-	}
-	for _, attr := range infobox.Attributes {
-		if attr.Label == "" {
-			continue
-		}
-		kv.KVMap[attr.Label] = attr.Value
-	}
-	return kv
-}
-
-func emptyResponse(req *models.Request) *models.Response {
-	return &models.Response{
-		Query:    req.Query,
-		Category: req.Category,
-		Results:  nil,
 	}
 }
 
@@ -205,113 +133,236 @@ func resolveLanguage(lang string) string {
 	return lang
 }
 
-// wdAttribute describes one Wikidata property to fetch and how to present it.
-type wdAttribute struct {
-	PID      string // Wikidata property id, e.g. "P18", or "_wikipedia" for article link
-	Label    string // human label, e.g. "image"
-	Type     string // "label" | "value" | "amount" | "date" | "url" | "image" | "geo"
-	URLID    string // key in data/external_urls.json (for url/image)
-	Priority int    // for images: lower is more preferred
+// dummyEntityURLs matches upstream SearXNG.
+var dummyEntityURLs = map[string]bool{
+	"http://www.wikidata.org/entity/Q4115189":  true,
+	"https://www.wikidata.org/entity/Q4115189": true,
+	"http://www.wikidata.org/entity/Q13406268": true,
+	"https://www.wikidata.org/entity/Q13406268": true,
+	"http://www.wikidata.org/entity/Q15397819": true,
+	"https://www.wikidata.org/entity/Q15397819": true,
+	"http://www.wikidata.org/entity/Q17339402": true,
+	"https://www.wikidata.org/entity/Q17339402": true,
 }
 
-func (a wdAttribute) valueVar() string {
-	if a.PID == "_wikipedia" {
-		return "article"
-	}
-	if a.Type == "label" {
-		return a.PID + "l"
-	}
-	return a.PID + "v"
+type wdAttribute struct {
+	Name          string
+	Label         string
+	Type          string // value | label | amount | date | url | image | geo | article
+	URLID         string
+	URLPathPrefix string
+	Priority      int
 }
 
 func (a wdAttribute) selectClause() string {
-	if a.PID == "_wikipedia" {
-		return " ?article"
+	switch a.Type {
+	case "value", "url":
+		return "(group_concat(distinct ?" + a.Name + ";separator=', ') as ?" + a.Name + "s)"
+	case "label":
+		return "(group_concat(distinct ?" + a.Name + "Label;separator=', ') as ?" + a.Name + "Labels)"
+	case "image":
+		return "(group_concat(distinct ?" + a.Name + ";separator=', ') as ?" + a.Name + "s)"
+	case "amount":
+		return "?" + a.Name + " ?" + a.Name + "Unit"
+	case "date":
+		return "?" + a.Name + " ?" + a.Name + "timePrecision ?" + a.Name + "timeZone ?" + a.Name + "timeCalendar"
+	case "geo":
+		return "?" + a.Name + "Lat ?" + a.Name + "Long"
+	case "article":
+		return "?article" + a.Name + " ?articleName" + a.Name
 	}
-	if a.Type == "label" {
-		return " ?" + a.PID + "v ?" + a.PID + "l"
-	}
-	return " ?" + a.PID + "v"
+	return ""
 }
 
 func (a wdAttribute) whereClause(language string) string {
-	if a.PID == "_wikipedia" {
-		return fmt.Sprintf(`  OPTIONAL {
-    ?article schema:about ?item ;
-             schema:inLanguage "%s" ;
-             schema:isPartOf <https://%s.wikipedia.org/> .
-  }`, language, language)
+	switch a.Type {
+	case "value", "label", "url", "image":
+		return "OPTIONAL { ?item wdt:" + a.Name + " ?" + a.Name + ". }"
+	case "amount":
+		return fmt.Sprintf(`OPTIONAL { ?item p:%[1]s ?%[1]sNode .
+  ?%[1]sNode rdf:type wikibase:BestRank ; ps:%[1]s ?%[1]s .
+  OPTIONAL { ?%[1]sNode psv:%[1]s/wikibase:quantityUnit ?%[1]sUnit. } }`, a.Name)
+	case "date":
+		return fmt.Sprintf(`OPTIONAL { ?item p:%[1]s/psv:%[1]s [
+    wikibase:timeValue ?%[1]s ;
+    wikibase:timePrecision ?%[1]stimePrecision ;
+    wikibase:timeTimezone ?%[1]stimeZone ;
+    wikibase:timeCalendarModel ?%[1]stimeCalendar ] .
+  hint:Prior hint:rangeSafe true. }`, a.Name)
+	case "geo":
+		return fmt.Sprintf(`OPTIONAL { ?item p:%[1]s/psv:%[1]s [
+    wikibase:geoLatitude ?%[1]sLat ;
+    wikibase:geoLongitude ?%[1]sLong ] }`, a.Name)
+	case "article":
+		return fmt.Sprintf(`OPTIONAL { ?article%[1]s schema:about ?item ;
+    schema:inLanguage "%[1]s" ;
+    schema:isPartOf <https://%[1]s.wikipedia.org/> ;
+    schema:name ?articleName%[1]s . }`, a.Name)
 	}
-	if a.Type == "label" {
-		return fmt.Sprintf(`  OPTIONAL {
-    ?item wdt:%s ?%sv.
-    OPTIONAL { ?%sv rdfs:label ?%sl. FILTER(LANG(?%sl) = "%s") }
-  }`, a.PID, a.PID, a.PID, a.PID, a.PID, language)
-	}
-	return fmt.Sprintf(`  OPTIONAL { ?item wdt:%s ?%sv. }`, a.PID, a.PID)
+	return ""
 }
 
-// getAttributes returns the fixed catalog of Wikidata properties to fetch.
-func getAttributes() []wdAttribute {
-	return []wdAttribute{
-		// dates
-		{PID: "P571", Label: "inception", Type: "date"},
-		{PID: "P569", Label: "date of birth", Type: "date"},
-		{PID: "P570", Label: "date of death", Type: "date"},
-		// labels
-		{PID: "P27", Label: "country of citizenship", Type: "label"},
-		{PID: "P17", Label: "country", Type: "label"},
-		{PID: "P36", Label: "capital", Type: "label"},
-		{PID: "P37", Label: "official language", Type: "label"},
-		// values
-		{PID: "P1082", Label: "population", Type: "value"},
-		{PID: "P498", Label: "currency code", Type: "value"},
-		// amounts
-		{PID: "P2046", Label: "area", Type: "amount"},
-		{PID: "P2048", Label: "height", Type: "amount"},
-		// URLs
-		{PID: "P856", Label: "official website", Type: "url", URLID: ""},
-		{PID: "P345", Label: "IMDb", Type: "url", URLID: "imdb_id"},
-		{PID: "P2002", Label: "Twitter", Type: "url", URLID: "twitter_profile"},
-		{PID: "P2013", Label: "Facebook", Type: "url", URLID: "facebook_profile"},
-		// images (priority lower = more preferred)
-		{PID: "P18", Label: "image", Type: "image", URLID: "wikimedia_image", Priority: 4},
-		{PID: "P154", Label: "logo", Type: "image", URLID: "wikimedia_image", Priority: 3},
-		{PID: "P41", Label: "flag", Type: "image", URLID: "wikimedia_image", Priority: 5},
-		// geo
-		{PID: "P625", Label: "coordinate location", Type: "geo"},
-		// wikipedia article
-		{PID: "_wikipedia", Label: "Wikipedia", Type: "url"},
+func (a wdAttribute) wikibaseLabel() string {
+	if a.Type == "label" {
+		return "?" + a.Name + " rdfs:label ?" + a.Name + "Label ."
 	}
+	return ""
 }
+
+func (a wdAttribute) groupBy() string {
+	switch a.Type {
+	case "amount", "date", "geo", "article":
+		return a.selectClause()
+	}
+	return ""
+}
+
+func (a wdAttribute) getStr(b sparqlBinding) string {
+	firstValue := func(key string) string {
+		v, ok := b[key]
+		if !ok {
+			return ""
+		}
+		s := v.Value
+		if i := strings.Index(s, ", "); i >= 0 {
+			s = s[:i]
+		}
+		return strings.TrimSpace(s)
+	}
+
+	switch a.Type {
+	case "value", "url", "image":
+		return firstValue(a.Name + "s")
+	case "label":
+		return firstValue(a.Name + "Labels")
+	case "amount":
+		val := b[a.Name].Value
+		if val == "" {
+			return ""
+		}
+		if unit := b[a.Name+"Unit"].Value; unit != "" {
+			val += " " + lastPathSegment(unit)
+		}
+		return val
+	case "date":
+		return b[a.Name].Value
+	case "geo":
+		lat := b[a.Name+"Lat"].Value
+		lon := b[a.Name+"Long"].Value
+		if lat != "" && lon != "" {
+			return lat + " " + lon
+		}
+	case "article":
+		if v, ok := b["article"+a.Name]; ok {
+			return v.Value
+		}
+	}
+	return ""
+}
+
+func getAttributes(language string) []wdAttribute {
+	attrs := []wdAttribute{
+		// Dates
+		{Name: "P569", Label: "date of birth", Type: "date"},
+		{Name: "P570", Label: "date of death", Type: "date"},
+		{Name: "P571", Label: "inception", Type: "date"},
+		// Labels
+		{Name: "P17", Label: "country", Type: "label"},
+		{Name: "P27", Label: "country of citizenship", Type: "label"},
+		{Name: "P36", Label: "capital", Type: "label"},
+		// Values
+		{Name: "P1082", Label: "population", Type: "value"},
+		// Amounts
+		{Name: "P2046", Label: "area", Type: "amount"},
+		// URLs
+		{Name: "P856", Label: "official website", Type: "url"},
+		// Wikipedia article (user language)
+		{Name: language, Label: "Wikipedia", Type: "article"},
+	}
+	if language != "en" {
+		attrs = append(attrs, wdAttribute{Name: "en", Label: "Wikipedia", Type: "article"})
+	}
+	// Geo
+	attrs = append(attrs, wdAttribute{Name: "P625", Label: "OpenStreetMap", Type: "geo"})
+	// Images - higher Priority wins (matches upstream logic)
+	attrs = append(attrs,
+		wdAttribute{Name: "P15", Label: "route map", Type: "image", Priority: 1},
+		wdAttribute{Name: "P242", Label: "locator map", Type: "image", Priority: 2},
+		wdAttribute{Name: "P154", Label: "logo", Type: "image", Priority: 3},
+		wdAttribute{Name: "P18", Label: "image", Type: "image", Priority: 4},
+		wdAttribute{Name: "P41", Label: "flag", Type: "image", Priority: 5},
+		wdAttribute{Name: "P2716", Label: "collage", Type: "image", Priority: 6},
+		wdAttribute{Name: "P2910", Label: "icon", Type: "image", Priority: 7},
+	)
+	return attrs
+}
+
+const queryTemplate = `PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+PREFIX wikibase: <http://wikiba.se/ontology#>
+PREFIX bd: <http://www.bigdata.com/rdf#>
+PREFIX mwapi: <https://www.mediawiki.org/ontology#API/>
+PREFIX p: <http://www.wikidata.org/prop/>
+PREFIX ps: <http://www.wikidata.org/prop/statement/>
+PREFIX psv: <http://www.wikidata.org/prop/statement/value/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX hint: <http://www.bigdata.com/queryHints#>
+
+SELECT ?item ?itemLabel ?itemDescription %SELECT%
+WHERE
+{
+  SERVICE wikibase:mwapi {
+    bd:serviceParam wikibase:endpoint "www.wikidata.org" .
+    bd:serviceParam wikibase:api "EntitySearch" .
+    bd:serviceParam wikibase:limit 1 .
+    bd:serviceParam mwapi:search "%QUERY%" .
+    bd:serviceParam mwapi:language "%LANGUAGE%" .
+    ?item wikibase:apiOutputItem mwapi:item .
+  }
+  hint:Prior hint:runFirst "true" .
+
+  %WHERE%
+
+  SERVICE wikibase:label {
+    bd:serviceParam wikibase:language "%LANGUAGE%,en" .
+    ?item rdfs:label ?itemLabel .
+    ?item schema:description ?itemDescription .
+    %WIKIBASE_LABELS%
+  }
+}
+GROUP BY ?item ?itemLabel ?itemDescription %GROUP_BY%
+`
 
 func buildEntitySearchQuery(query, language string) (string, []wdAttribute) {
-	attrs := getAttributes()
+	attrs := getAttributes(language)
 
 	var selectParts []string
 	var whereParts []string
+	var labelParts []string
+	var groupByParts []string
 	for _, a := range attrs {
 		selectParts = append(selectParts, a.selectClause())
 		whereParts = append(whereParts, a.whereClause(language))
+		if lbl := a.wikibaseLabel(); lbl != "" {
+			labelParts = append(labelParts, lbl)
+		}
+		if gb := a.groupBy(); gb != "" {
+			groupByParts = append(groupByParts, gb)
+		}
 	}
 
 	sparql := queryTemplate
-	sparql = strings.ReplaceAll(sparql, "%QUERY%", sparqlEscape(query))
+	sparql = strings.ReplaceAll(sparql, "%QUERY%", wikimedia.SparqlEscape(query))
 	sparql = strings.ReplaceAll(sparql, "%LANGUAGE%", language)
-	sparql = strings.ReplaceAll(sparql, "%SELECT%", strings.Join(selectParts, ""))
-	sparql = strings.ReplaceAll(sparql, "%WHERE%", strings.Join(whereParts, "\n"))
+	sparql = strings.ReplaceAll(sparql, "%SELECT%", strings.Join(selectParts, " "))
+	sparql = strings.ReplaceAll(sparql, "%WHERE%", strings.Join(whereParts, "\n  "))
+	sparql = strings.ReplaceAll(sparql, "%WIKIBASE_LABELS%", strings.Join(labelParts, "\n      "))
+	sparql = strings.ReplaceAll(sparql, "%GROUP_BY%", strings.Join(groupByParts, " "))
 	return sparql, attrs
 }
 
-func sparqlEscape(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	s = strings.ReplaceAll(s, "\n", " ")
-	s = strings.ReplaceAll(s, "\r", " ")
-	return s
-}
-
-// sparqlResponse mirrors the JSON returned by the Wikidata SPARQL endpoint.
 type sparqlResponse struct {
 	Results struct {
 		Bindings []sparqlBinding `json:"bindings"`
@@ -330,25 +381,26 @@ func buildInfoboxFromBinding(b sparqlBinding, attrs []wdAttribute, language, ent
 			Title:    title,
 			Content:  b["itemDescription"].Value,
 			Engine:   "wikidata",
-			Template: "infobox",
+			Template: "infobox.html",
 			Category: string(models.CategoryGeneral),
 		},
 		InfoboxID: entityURL,
 	}
 
 	bestImage := ""
-	bestPriority := math.MaxInt32
+	bestPriority := -1
+	articleSet := false
 
 	for _, a := range attrs {
-		raw := extractValue(b, a)
+		raw := a.getStr(b)
 		if raw == "" {
 			continue
 		}
 
 		switch a.Type {
 		case "image":
-			url := wikimediaThumbnailURL(raw)
-			if url != "" && a.Priority < bestPriority {
+			url := externalurls.GetWikimediaThumbnailURL(raw)
+			if url != "" && a.Priority > bestPriority {
 				bestImage = url
 				bestPriority = a.Priority
 			}
@@ -357,24 +409,46 @@ func buildInfoboxFromBinding(b sparqlBinding, attrs []wdAttribute, language, ent
 			if url != "" {
 				infobox.URLs = append(infobox.URLs, results.InfoboxURL{Title: a.Label, URL: url})
 			}
+		case "article":
+			articleURL := strings.ReplaceAll(raw, "http://", "https://")
+			if articleURL != "" {
+				infobox.URLs = append(infobox.URLs, results.InfoboxURL{Title: a.Label, URL: articleURL})
+				if !articleSet || a.Name != "en" {
+					infobox.InfoboxID = articleURL
+					articleSet = true
+				}
+			}
 		case "geo":
 			lat, lon := parseCoordinate(raw)
 			if lat != 0 || lon != 0 {
 				zoom := 19
-				if areaVal := extractRaw(b, "P2046v"); areaVal != "" {
+				if areaVal := b["P2046"].Value; areaVal != "" {
 					if area, err := strconv.ParseFloat(areaVal, 64); err == nil {
 						zoom = externalurls.AreaToOSMZoom(area)
 					}
 				}
 				mapURL := externalurls.GetEarthCoordinatesURL(lat, lon, zoom)
 				if mapURL != "" {
-					infobox.URLs = append(infobox.URLs, results.InfoboxURL{Title: "OpenStreetMap", URL: mapURL})
+					infobox.URLs = append(infobox.URLs, results.InfoboxURL{Title: a.Label, URL: mapURL})
 				}
 			}
 		default:
+			value := raw
+			if a.Type == "amount" {
+				parts := strings.Fields(raw)
+				if len(parts) > 0 {
+					num := formatByType(parts[0], "amount")
+					if len(parts) > 1 {
+						num += " " + strings.Join(parts[1:], " ")
+					}
+					value = num
+				}
+			} else {
+				value = formatByType(raw, a.Type)
+			}
 			infobox.Attributes = append(infobox.Attributes, results.InfoboxAttribute{
 				Label: a.Label,
-				Value: formatByType(raw, a.Type),
+				Value: value,
 			})
 		}
 	}
@@ -389,64 +463,17 @@ func buildInfoboxFromBinding(b sparqlBinding, attrs []wdAttribute, language, ent
 	return infobox
 }
 
-func extractValue(b sparqlBinding, a wdAttribute) string {
-	key := a.valueVar()
-	if v, ok := b[key]; ok && v.Value != "" {
-		return v.Value
-	}
-	// For label-type properties, fall back to the Q-id from the value variable.
-	if a.Type == "label" {
-		if v, ok := b[a.PID+"v"]; ok && v.Value != "" {
-			return lastPathSegment(v.Value)
-		}
-	}
-	return ""
-}
-
-func extractRaw(b sparqlBinding, key string) string {
-	if v, ok := b[key]; ok {
-		return v.Value
-	}
-	return ""
-}
-
-func lastPathSegment(u string) string {
-	u = strings.TrimRight(u, "/")
-	if i := strings.LastIndex(u, "/"); i >= 0 {
-		return u[i+1:]
-	}
-	return u
-}
-
-func formatByType(raw, typ string) string {
-	switch typ {
-	case "date":
-		if t, err := time.Parse(time.RFC3339, raw); err == nil {
-			return t.Format("2006-01-02")
-		}
-		if idx := strings.Index(raw, "T"); idx >= 0 {
-			return raw[:idx]
-		}
-		return raw
-	case "amount":
-		if f, err := strconv.ParseFloat(raw, 64); err == nil {
-			return strconv.FormatFloat(f, 'f', -1, 64)
-		}
-		return raw
-	default:
-		return raw
-	}
-}
-
-func wikimediaThumbnailURL(raw string) string {
-	filename := externalurls.GetWikimediaImageID(raw)
-	if filename == "" {
-		return ""
-	}
-	return "https://commons.wikimedia.org/wiki/Special:FilePath/" + url.PathEscape(filename) + "?width=300"
-}
-
 func buildURL(a wdAttribute, raw string) string {
+	raw = strings.TrimSpace(raw)
+	if a.URLPathPrefix != "" {
+		parts := strings.SplitN(raw, "@", 2)
+		if len(parts) == 2 {
+			account := strings.TrimSpace(parts[0])
+			domain := strings.TrimSpace(parts[1])
+			return "https://" + domain + a.URLPathPrefix + account
+		}
+		return raw
+	}
 	if a.URLID == "" {
 		return raw
 	}
@@ -470,4 +497,31 @@ func parseCoordinate(raw string) (lat, lon float64) {
 	lon, _ = strconv.ParseFloat(parts[0], 64)
 	lat, _ = strconv.ParseFloat(parts[1], 64)
 	return lat, lon
+}
+
+func formatByType(raw, typ string) string {
+	switch typ {
+	case "date":
+		if t, err := time.Parse(time.RFC3339, raw); err == nil {
+			return t.Format("2006-01-02")
+		}
+		if idx := strings.Index(raw, "T"); idx >= 0 {
+			return raw[:idx]
+		}
+		return raw
+	case "amount":
+		if f, err := strconv.ParseFloat(raw, 64); err == nil {
+			return strconv.FormatFloat(f, 'f', -1, 64)
+		}
+		return raw
+	}
+	return raw
+}
+
+func lastPathSegment(u string) string {
+	u = strings.TrimRight(u, "/")
+	if i := strings.LastIndex(u, "/"); i >= 0 {
+		return u[i+1:]
+	}
+	return u
 }
