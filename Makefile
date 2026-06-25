@@ -1,16 +1,28 @@
-.PHONY: build test run clean deps lint \
+.PHONY: all build plugin-example test test-short run clean deps lint \
   update-units update-currencies update-useragents update-traits update-bangs update-data \
   test-upstream test-upstream-report upstream-start upstream-stop
 
 BINARY_NAME=seargo
+PLUGIN_NAME=plugin-example
 BUILD_DIR=bin
+VERSION?=$(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_TIME?=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
+LDFLAGS=-s -w -X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)
+
+all: build plugin-example
 
 build:
 	cd web && npm run build 2>/dev/null || true
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/seargo
+	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/seargo
+
+plugin-example:
+	go build -ldflags "-s -w" -o $(BUILD_DIR)/$(PLUGIN_NAME) ./cmd/plugin-example
 
 test:
 	go test -v -race -cover ./...
+
+test-short:
+	go test -v -short -race -cover ./...
 
 run:
 	go run ./cmd/seargo -config configs/settings.yml -logtostderr

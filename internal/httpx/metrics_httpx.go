@@ -34,32 +34,32 @@ func logResponse(engine, network, method, url string, statusCode int, err error)
 	host := parseHost(url)
 	sc := statusClass(statusCode)
 
-	mlog.Debug("outbound request",
-		"engine", engine,
-		"network", network,
-		"method", method,
-		"url", url,
-		"status", statusCode,
-		"status_class", sc,
-		"error", err,
+	mlog.Debug("outbound request:",
+		"\n    engine:", engine,
+		"\n    network:", network,
+		"\n    method:", method,
+		"\n    url:", url,
+		"\n    status:", statusCode,
+		"\n    status_class:", sc,
+		"\n    error:", err,
 	)
 
 	if err != nil {
-		mlog.Info("outbound request failed",
-			"engine", engine,
-			"network", network,
-			"host", host,
-			"status_code", statusCode,
-			"status_class", sc,
-			"error_class", errorClass(err),
+		mlog.Info("outbound request failed:",
+			"\n    engine:", engine,
+			"\n    network:", network,
+			"\n    host", host,
+			"\n    status_code:", statusCode,
+			"\n    status_class:", sc,
+			"\n    error_class:", errorClass(err),
 		)
 	} else {
-		mlog.Info("outbound request",
-			"engine", engine,
-			"network", network,
-			"host", host,
-			"status_code", statusCode,
-			"status_class", sc,
+		mlog.Info("outbound request:",
+			"\n    engine:", engine,
+			"\n    network:", network,
+			"\n    host:", host,
+			"\n    status_code:", statusCode,
+			"\n    status_class:", sc,
 		)
 	}
 }
