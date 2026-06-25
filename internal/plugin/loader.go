@@ -2,23 +2,28 @@ package plugin
 
 import (
 	"fmt"
+	"net/rpc"
 	"os"
+	"os/exec"
 	"path/filepath"
-	goPlugin "plugin"
+	"runtime"
 	"strings"
 
-	"github.com/seargo/seargo/pkg/models"
+	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-plugin"
 )
 
-// LoadThirdPartyPlugins loads .so plugin files from a directory.
-// Only files matching configured plugin IDs are loaded.
-// Returns the number of successfully loaded plugins.
+// startExternalPluginFn is overridable in tests.
+var startExternalPluginFn = startExternalPlugin
+
+// LoadThirdPartyPlugins discovers and launches external plugin executables
+// from pluginDir. Only plugins whose IDs are in enabledIDs are loaded.
+// Returns the number of successfully registered plugins.
 func LoadThirdPartyPlugins(pluginDir string, enabledIDs []string, ps *PluginStorage) (int, error) {
 	if pluginDir == "" {
 		return 0, nil
 	}
 
-	// Build set of enabled IDs
 	enabled := make(map[string]bool, len(enabledIDs))
 	for _, id := range enabledIDs {
 		enabled[id] = true
@@ -31,13 +36,18 @@ func LoadThirdPartyPlugins(pluginDir string, enabledIDs []string, ps *PluginStor
 
 	loaded := 0
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".so") {
+		if entry.IsDir() {
 			continue
 		}
 
-		id := strings.TrimSuffix(entry.Name(), ".so")
+		id, ok := parseExecutableName(entry.Name(), runtime.GOOS)
+		if !ok {
+			continue
+		}
+
 		if err := validatePluginID(id); err != nil {
-			continue // skip files that don't match ID pattern
+			fmt.Fprintf(os.Stderr, "[seargo] invalid plugin id %q, skipping\n", id)
+			continue
 		}
 
 		if !enabled[id] {
@@ -45,13 +55,16 @@ func LoadThirdPartyPlugins(pluginDir string, enabledIDs []string, ps *PluginStor
 		}
 
 		path := filepath.Join(pluginDir, entry.Name())
-		p, err := loadPluginFromSO(path, id)
+		p, err := startExternalPluginFn(path, id)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[seargo] failed to load plugin %q from %q: %v\n", id, path, err)
+			fmt.Fprintf(os.Stderr, "[seargo] failed to start plugin %q from %q: %v\n", id, path, err)
 			continue
 		}
 
 		if err := ps.Register(p); err != nil {
+			if closer, ok := p.(interface{ Close() error }); ok {
+				closer.Close()
+			}
 			fmt.Fprintf(os.Stderr, "[seargo] failed to register plugin %q: %v\n", id, err)
 			continue
 		}
@@ -61,31 +74,66 @@ func LoadThirdPartyPlugins(pluginDir string, enabledIDs []string, ps *PluginStor
 	return loaded, nil
 }
 
-// loadPluginFromSO loads a single plugin from a .so file using Go's plugin package.
-// The .so must export a symbol named "Plugin" that implements the Plugin interface.
-func loadPluginFromSO(path, id string) (Plugin, error) {
-	p, err := goPlugin.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("open plugin %q: %w", id, err)
+// parseExecutableName extracts a plugin ID from a directory entry name.
+// On Windows the name must end with ".exe"; on Unix it must contain no dot.
+func parseExecutableName(name, goos string) (string, bool) {
+	var id string
+	if goos == "windows" {
+		if !strings.HasSuffix(name, ".exe") {
+			return "", false
+		}
+		id = strings.TrimSuffix(name, ".exe")
+	} else {
+		if strings.Contains(name, ".") {
+			return "", false
+		}
+		id = name
 	}
-
-	sym, err := p.Lookup("Plugin")
-	if err != nil {
-		return nil, fmt.Errorf("plugin %q: missing Plugin symbol: %w", id, err)
+	if id == "" {
+		return "", false
 	}
-
-	pluginImpl, ok := sym.(Plugin)
-	if !ok {
-		return nil, fmt.Errorf("plugin %q: Plugin symbol does not implement Plugin interface", id)
-	}
-
-	return pluginImpl, nil
+	return id, true
 }
 
-// ensureThirdPartyPluginInterface is a compile-time check that standard library
-// plugin.Plugin is not accidentally used instead of our Plugin interface.
-// It satisfies the unused-import linter if we ever import "plugin" separately.
-var _ = goPlugin.Open
+// startExternalPlugin launches a single external plugin executable and returns
+// an adapter that satisfies the internal Plugin interface.
+func startExternalPlugin(path, id string) (Plugin, error) {
+	clientConfig := plugin.ClientConfig{
+		HandshakeConfig:  HandshakeConfig,
+		Plugins:          map[string]plugin.Plugin{"external_plugin": &ExternalPluginPlugin{Impl: nil}},
+		Cmd:              exec.Command(path),
+		AllowedProtocols: []plugin.Protocol{plugin.ProtocolNetRPC},
+		Logger:           hclog.NewNullLogger(),
+	}
 
-// PluginNamespace ensures the models import is used.
-var _ = models.Result{}
+	client := plugin.NewClient(&clientConfig)
+	rpcClient, err := client.Client()
+	if err != nil {
+		client.Kill()
+		return nil, fmt.Errorf("plugin %q handshake failed: %w", id, err)
+	}
+
+	raw, err := rpcClient.Dispense("external_plugin")
+	if err != nil {
+		client.Kill()
+		return nil, fmt.Errorf("plugin %q dispense failed: %w", id, err)
+	}
+
+	netRPC, ok := raw.(*rpc.Client)
+	if !ok {
+		client.Kill()
+		return nil, fmt.Errorf("plugin %q returned unexpected client type %T", id, raw)
+	}
+
+	// Retrieve plugin metadata via RPC. The plugin's Info() does not depend on Init.
+	var infoReply struct {
+		Info PluginInfo
+	}
+	if err := netRPC.Call("Plugin.Info", &InfoArgs{}, &infoReply); err != nil {
+		client.Kill()
+		return nil, fmt.Errorf("plugin %q Info RPC failed: %w", id, err)
+	}
+
+	adapter := newExternalPluginAdapter(id, infoReply.Info, client, netRPC)
+	return adapter, nil
+}
