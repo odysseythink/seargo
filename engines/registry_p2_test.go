@@ -14,12 +14,15 @@ import (
 	"github.com/seargo/seargo/internal/engine"
 )
 
-func TestP2EngineAliasesRegistered(t *testing.T) {
-	aliases := []string{
-		"stackoverflow", "askubuntu", "superuser",
-		"wikicommons_files",
+func TestP2DedicatedEnginesRegistered(t *testing.T) {
+	// Dedicated engine implementations register their engine type name.
+	// Multi-instance engines (stackoverflow/askubuntu/superuser) are
+	// resolved from the "stackexchange" engine via EngineType in the loader.
+	engines := []string{
+		"stackexchange",
+		"wikicommons",
 	}
-	for _, name := range aliases {
+	for _, name := range engines {
 		_, ok := engine.Get(name)
 		assert.True(t, ok, "engine %q should be registered", name)
 	}

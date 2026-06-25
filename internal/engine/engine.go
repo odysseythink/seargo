@@ -11,6 +11,7 @@ import (
 // EngineInitConfig holds per-engine runtime configuration from the config file.
 type EngineInitConfig struct {
 	Name       string            // display name from config
+	EngineType string            // engine type key (e.g., "stackexchange" for "stackoverflow")
 	Shortcut   string            // shortcut from config
 	Categories []models.Category // per-engine categories (overrides defaults)
 	Timeout    float64           // per-engine timeout in seconds

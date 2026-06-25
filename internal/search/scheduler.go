@@ -68,12 +68,15 @@ func isEngineEnabled(ec config.EngineConfig) bool {
 	return !ec.Disabled
 }
 
-// engineKey 返回引擎在 map 中的 key。
+// engineKey returns the unique engine instance key for maps.
+// Uses the instance name (ec.Name) so multi-instance engines like
+// stackoverflow/askubuntu/superuser (all engine: stackexchange)
+// each get their own processor.
 func engineKey(ec config.EngineConfig) string {
-	if ec.Engine != "" {
-		return ec.Engine
+	if ec.Name != "" {
+		return ec.Name
 	}
-	return ec.Name
+	return ec.Engine
 }
 
 func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, pluginStorage *plugin.PluginStorage, answererStorage *answerer.AnswererStorage, bangsSvc *bangs.BangTrie, traitsMap engine.EngineTraitsMap, engineStatsStore *metrics.EngineStatsStore) (*Scheduler, error) {
@@ -118,16 +121,16 @@ func NewScheduler(cfg *config.Config, c cache.Cache, client *httpx.Client, plugi
 		lookupName := engineKey(ec)
 		eng, ok := engine.Get(lookupName)
 		if !ok {
-			mlog.Warning("Engine not found", "engine", lookupName)
+			mlog.Warning("Engine not found:", lookupName)
 			continue
 		}
 		proc, err := processor.NewProcessorFromConfig(eng, ec, suspension, client)
 		if err != nil {
-			mlog.Error("Failed to create processor", "engine", lookupName, "error", err)
+			mlog.Error("Failed to create processor:", lookupName, ", because of ", err)
 			continue
 		}
 		processors[lookupName] = proc
-		mlog.Info("Engine registered", "engine", lookupName)
+		mlog.Info("Engine registered:", lookupName)
 	}
 
 	// Compute global timeout

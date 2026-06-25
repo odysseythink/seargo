@@ -62,12 +62,23 @@ func (l *Loader) Load(ctx context.Context, configs []EngineInitConfig) (*LoadRes
 			continue
 		}
 
+		// Look up by Name first, fall back to EngineType for aliased
+		// engines (e.g. name=stackoverflow → engine=stackexchange).
 		eng, ok := Get(cfg.Name)
+		if !ok && cfg.EngineType != "" && cfg.EngineType != cfg.Name {
+			eng, ok = Get(cfg.EngineType)
+		}
 		if !ok {
-			return nil, fmt.Errorf("engine %q not found in registry", cfg.Name)
+			return nil, fmt.Errorf("engine %q not found in registry (name=%q)", cfg.EngineType, cfg.Name)
 		}
 
-		traits, _ := l.traits.Lookup(cfg.Name)
+		// Use EngineType as canonical short name; fall back to Name.
+		shortName := cfg.EngineType
+		if shortName == "" {
+			shortName = cfg.Name
+		}
+
+		traits, _ := l.traits.Lookup(shortName)
 		cfg.EngineTraits = traits
 
 		if !eng.Setup(cfg) {
@@ -78,13 +89,13 @@ func (l *Loader) Load(ctx context.Context, configs []EngineInitConfig) (*LoadRes
 
 		for _, cat := range eng.Categories() {
 			catStr := string(cat)
-			categories[catStr] = append(categories[catStr], cfg.Name)
+			categories[catStr] = append(categories[catStr], shortName)
 		}
 		if len(eng.Categories()) == 0 {
-			categories["other"] = append(categories["other"], cfg.Name)
+			categories["other"] = append(categories["other"], shortName)
 		}
 		if cfg.Shortcut != "" {
-			shortcuts[cfg.Shortcut] = cfg.Name
+			shortcuts[cfg.Shortcut] = shortName
 		}
 	}
 

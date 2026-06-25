@@ -230,6 +230,49 @@ type EngineConfig struct {
 	GoogleParams         GoogleEngineParams `yaml:"google_params"`
 }
 
+func (ec *EngineConfig) UnmarshalYAML(value *yaml.Node) error {
+	// First decode known fields into the struct.
+	type plain EngineConfig
+	if err := value.Decode((*plain)(ec)); err != nil {
+		return err
+	}
+
+	// Collect all keys into a raw map so we can find unknown fields.
+	var raw map[string]interface{}
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+
+	// Known YAML keys (everything with a struct tag).
+	known := map[string]bool{
+		"name": true, "engine": true, "disabled": true, "shortcut": true,
+		"categories": true, "weight": true, "timeout": true, "api_key": true,
+		"extra": true, "enabled": true,
+		"paging": true, "time_range_support": true, "language_support": true,
+		"safesearch": true, "display_error_messages": true, "enable_http": true,
+		"inactive": true, "tokens": true, "network": true, "short_cut": true,
+		"soft_max_redirects": true, "no_result_for_http_status": true,
+		"raise_for_http_error": true, "google_params": true,
+	}
+
+	for k := range known {
+		delete(raw, k)
+	}
+
+	if len(raw) > 0 {
+		if ec.Extra == nil {
+			ec.Extra = make(map[string]interface{}, len(raw))
+		}
+		for k, v := range raw {
+			if _, exists := ec.Extra[k]; !exists {
+				ec.Extra[k] = v
+			}
+		}
+	}
+
+	return nil
+}
+
 type UseDefaultSettings struct {
 	Engines UseDefaultSettingsEngines `yaml:"engines"`
 }

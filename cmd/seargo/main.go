@@ -11,6 +11,10 @@ import (
 	"time"
 
 	"github.com/odysseythink/mlog"
+	"github.com/seargo/seargo/internal/answerer"
+	_ "github.com/seargo/seargo/internal/answerer/builtin"
+	_ "github.com/seargo/seargo/internal/answerer/builtin/currency"
+	weather "github.com/seargo/seargo/internal/answerer/builtin/weather"
 	"github.com/seargo/seargo/internal/autocomplete"
 	"github.com/seargo/seargo/internal/bangs"
 	"github.com/seargo/seargo/internal/botdetection"
@@ -22,10 +26,6 @@ import (
 	"github.com/seargo/seargo/internal/i18n"
 	"github.com/seargo/seargo/internal/imageproxy"
 	"github.com/seargo/seargo/internal/limiter"
-	"github.com/seargo/seargo/internal/answerer"
-	_ "github.com/seargo/seargo/internal/answerer/builtin"
-	_ "github.com/seargo/seargo/internal/answerer/builtin/currency"
-	weather "github.com/seargo/seargo/internal/answerer/builtin/weather"
 	"github.com/seargo/seargo/internal/metrics"
 	"github.com/seargo/seargo/internal/middleware"
 	"github.com/seargo/seargo/internal/plugin"
@@ -40,12 +40,12 @@ import (
 	// Import engines to trigger init() registration
 	_ "github.com/seargo/seargo/engines/bing"
 	_ "github.com/seargo/seargo/engines/brave"
-	_ "github.com/seargo/seargo/engines/duckduckgo"
-	_ "github.com/seargo/seargo/engines/google"
 	_ "github.com/seargo/seargo/engines/configured"
 	_ "github.com/seargo/seargo/engines/dockerhub"
+	_ "github.com/seargo/seargo/engines/duckduckgo"
 	_ "github.com/seargo/seargo/engines/gentoo"
 	_ "github.com/seargo/seargo/engines/githubcode"
+	_ "github.com/seargo/seargo/engines/google"
 	_ "github.com/seargo/seargo/engines/stackexchange"
 	_ "github.com/seargo/seargo/engines/wikicommons"
 	_ "github.com/seargo/seargo/engines/wikidata"
@@ -75,7 +75,7 @@ func loadEngineTraits(path string) engine.EngineTraitsMap {
 		mlog.Warning("Failed to parse engine traits, continuing without traits", "error", err)
 		return nil
 	}
-	mlog.Info("Loaded engine traits", "engines", len(traits))
+	mlog.Info("Loaded engine traits ", " engines ", len(traits))
 	return traits
 }
 
@@ -93,7 +93,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	mlog.Info("Starting SearGo", "config", *configPath, "port", cfg.Server.Port)
+	mlog.Info("Starting SearGo ", " config ", *configPath, ",port ", cfg.Server.Port)
 
 	// Init shared storage
 	sharedStorage, err := storage.NewFromConfig(cfg)
@@ -158,6 +158,7 @@ func main() {
 
 		initConfigs = append(initConfigs, engine.EngineInitConfig{
 			Name:                  ec.Name,
+			EngineType:            ec.Engine,
 			Shortcut:              ec.Shortcut,
 			Categories:            cfgCategories,
 			Timeout:               ec.Timeout,
@@ -188,7 +189,7 @@ func main() {
 		mlog.Error("Failed to load engines", "error", err)
 		os.Exit(1)
 	}
-	mlog.Info("Engines loaded", "categories", len(loadResult.Categories), "shortcuts", len(loadResult.Shortcuts))
+	mlog.Info("Engines loaded ", " categories ", len(loadResult.Categories), ",shortcuts ", len(loadResult.Shortcuts))
 
 	// Wait for all async Init goroutines to complete so that engines relying on
 	// network-bound Init (e.g. Wikipedia fetching wiki_netloc) are registered
@@ -281,7 +282,7 @@ func main() {
 	}
 	for _, p := range pluginStorage.All() {
 		if !p.Init(appCtx) {
-			mlog.Warning("Plugin init returned false, continuing without it", "plugin", p.ID())
+			mlog.Warning("Plugin init returned false, continuing without it - ", p.ID())
 		}
 	}
 	plugin.SetGlobalPlugin(pluginStorage)

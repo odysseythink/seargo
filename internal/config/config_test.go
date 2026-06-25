@@ -559,4 +559,24 @@ func TestLoad_P2Engines(t *testing.T) {
 			assert.Contains(t, e.Categories, "code")
 		}
 	}
+
+	// P2 configured engines must have their flat extra fields captured.
+	for _, e := range cfg.Engines {
+		switch e.Engine {
+		case "hoogle":
+			assert.NotEmpty(t, e.Extra["search_url"], "hoogle: search_url should be in Extra")
+			assert.NotEmpty(t, e.Extra["result_xpath"], "hoogle: result_xpath should be in Extra")
+		case "mdn":
+			assert.NotEmpty(t, e.Extra["search_url"], "mdn: search_url should be in Extra")
+			assert.NotEmpty(t, e.Extra["results_query"], "mdn: results_query should be in Extra")
+		case "mankier":
+			assert.NotEmpty(t, e.Extra["search_url"], "mankier: search_url should be in Extra")
+		case "openairedatasets":
+			assert.NotEmpty(t, e.Extra["search_url"], "openairedatasets: search_url should be in Extra")
+		case "openairepublications":
+			assert.NotEmpty(t, e.Extra["search_url"], "openairepublications: search_url should be in Extra")
+		case "stackexchange":
+			assert.NotEmpty(t, e.Extra["api_site"], "stackexchange: api_site should be in Extra (name=%s)", e.Name)
+		}
+	}
 }
