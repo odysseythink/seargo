@@ -23,3 +23,9 @@ burst_max = 15
 # Long window — sustained threshold
 long_duration = "10m"
 long_max = 150
+
+# Optional: override the default User-Agent regex patterns used by bot detection.
+# If omitted, the default patterns block empty UA, curl, wget, python-requests,
+# scrapy, and strings containing bot/crawler/spider/headless.
+# Set to an empty list [] to allow all User-Agents.
+# user_agent_patterns = ["^$", "(?i)curl/", "(?i)wget/"]

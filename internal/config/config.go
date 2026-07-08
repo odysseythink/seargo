@@ -1044,9 +1044,10 @@ func applyEnvOverrides(cfg *Config) {
 
 // LimiterTOMLConfig mirrors configs/limiter.toml.
 type LimiterTOMLConfig struct {
-	IPLists  LimiterIPListsConfig  `toml:"ip_lists"`
-	IPLimit  LimiterIPLimitConfig  `toml:"ip_limit"`
-	Windows  LimiterWindowsConfig  `toml:"windows"`
+	IPLists            LimiterIPListsConfig  `toml:"ip_lists"`
+	IPLimit            LimiterIPLimitConfig  `toml:"ip_limit"`
+	Windows            LimiterWindowsConfig  `toml:"windows"`
+	UserAgentPatterns  []string              `toml:"user_agent_patterns"`
 }
 
 type LimiterIPListsConfig struct {

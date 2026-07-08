@@ -232,23 +232,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Phase 8: Init bot detection
-	bdCfg, err := botdetection.LoadConfig("configs/limiter.toml")
-	if err != nil {
-		mlog.Error("Failed to load bot detection config", "error", err)
-		os.Exit(1)
-	}
+	// Phase 8: Init limiter and bot detection (both governed by server.limiter)
+	var limiterSvc limiter.Limiter
+	var botDetector *botdetection.Detector
+	if cfg.Server.Limiter {
+		limCfg, err := limiter.LoadConfig("configs/limiter.toml")
+		if err != nil {
+			mlog.Error("Failed to load limiter config", "error", err)
+			os.Exit(1)
+		}
+		limiterSvc = limiter.New(limCfg, sharedStorage.WithNamespace("limiter"))
 
-	// Phase 8: Init limiter
-	limCfg, err := limiter.LoadConfig("configs/limiter.toml")
-	if err != nil {
-		mlog.Error("Failed to load limiter config", "error", err)
-		os.Exit(1)
+		bdCfg, err := botdetection.LoadConfig("configs/limiter.toml")
+		if err != nil {
+			mlog.Error("Failed to load bot detection config", "error", err)
+			os.Exit(1)
+		}
+		// limiterSvc implements botdetection.State.
+		botDetector = botdetection.NewDetector(bdCfg, limiterSvc)
 	}
-	limiterSvc := limiter.New(limCfg, sharedStorage.WithNamespace("limiter"))
-
-	// Phase 8: Init bot detector (limiterSvc implements botdetection.State)
-	botDetector := botdetection.NewDetector(bdCfg, limiterSvc)
 
 	// Phase 8: Init HMAC signer for proxies
 	hmacSigner := security.NewHMACSigner(cfg.Server.SecretKey)

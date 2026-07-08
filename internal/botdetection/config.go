@@ -39,6 +39,20 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func fromLimiterTOML(toml *config.LimiterTOMLConfig) *Config {
+	patterns := toml.UserAgentPatterns
+	if len(patterns) == 0 {
+		patterns = []string{
+			`^$`,
+			`(?i)curl/`,
+			`(?i)wget/`,
+			`(?i)python-requests/`,
+			`(?i)scrapy`,
+			`(?i)\bbot\b`,
+			`(?i)\bcrawler\b`,
+			`(?i)\bspider\b`,
+			`(?i)\bheadless\b`,
+		}
+	}
 	return &Config{
 		IPv4Prefix: 32,
 		IPv6Prefix: 48,
@@ -54,16 +68,6 @@ func fromLimiterTOML(toml *config.LimiterTOMLConfig) *Config {
 		LinkToken: LinkTokenConfig{
 			Enabled: toml.IPLimit.LinkToken,
 		},
-		UserAgentPatterns: []string{
-			`^$`,
-			`(?i)curl/`,
-			`(?i)wget/`,
-			`(?i)python-requests/`,
-			`(?i)scrapy`,
-			`(?i)\bbot\b`,
-			`(?i)\bcrawler\b`,
-			`(?i)\bspider\b`,
-			`(?i)\bheadless\b`,
-		},
+		UserAgentPatterns: patterns,
 	}
 }

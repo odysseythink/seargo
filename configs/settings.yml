@@ -31,7 +31,7 @@ search:
     recaptcha_SearxEngineCaptcha: 604800
 
 server:
-  port: 8080
+  port: 9999
   bind_address: "0.0.0.0"
   limiter: false
   public_instance: false
@@ -43,9 +43,9 @@ outgoing:
   request_timeout: 10.0
   useragent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
   enable_http2: false
-  proxies:
-    all://:
-      - http://127.0.0.1:12001
+  # proxies:
+  #   all://:
+  #     - http://127.0.0.1:12001
   pool_connections: 100
   pool_maxsize: 10
   keepalive_expiry: 5.0
@@ -67,6 +67,7 @@ preferences:
   lock: []
 
 valkey:
+  url: "redis://:123456@192.168.10.88:6379/1"
 
 plugins: {}
 
@@ -443,5 +444,5 @@ cache:
   remote_ttl: 300
 
 storage:
-  backend: "memory"
-
+  backend: "valkey"
+  valkey_url: "redis://:123456@192.168.10.88:6379/1"

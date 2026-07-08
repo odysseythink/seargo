@@ -21,6 +21,10 @@ import (
 )
 
 func (s *Server) setupRoutes() {
+	// SearXNG-compatible search endpoint: /search is the canonical HTML/JSON
+	// search path; /api/search remains available for the React frontend.
+	s.router.GET("/search", s.handleSearch)
+
 	api := s.router.Group("/api")
 	{
 		api.GET("/search", s.handleSearch)
